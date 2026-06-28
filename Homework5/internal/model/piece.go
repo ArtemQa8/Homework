@@ -1,7 +1,5 @@
 package model
 
-import "fmt"
-
 // ANSI-коды цветов
 const (
 	Reset      = "\033[0m"        // Сброс
