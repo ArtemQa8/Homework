@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Homework5/internal/model"
+	"Homework05/internal/model"
 	"bufio"
 	"fmt"
 	"os"
