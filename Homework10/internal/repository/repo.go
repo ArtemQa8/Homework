@@ -47,6 +47,13 @@ func (х *Хранилище) ЗагрузитьИзФайлов() error {
 		if err := json.Unmarshal(данные, &х.Игроки); err != nil {
 			return fmt.Errorf("ошибка загрузки игроков: %w", err)
 		}
+
+		for _, игрок := range х.Игроки {
+			if игрок.ID() >= х.nextPlayerID {
+				х.nextPlayerID = игрок.ID() + 1
+			}
+		}
+
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -57,6 +64,12 @@ func (х *Хранилище) ЗагрузитьИзФайлов() error {
 		if err := json.Unmarshal(данные, &х.Игры); err != nil {
 			return fmt.Errorf("ошибка загрузки игр: %w", err)
 		}
+
+		for _, игра := range х.Игры {
+			if игра.ID() >= х.nextGameID {
+				х.nextGameID = игра.ID() + 1
+			}
+		}
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -66,6 +79,12 @@ func (х *Хранилище) ЗагрузитьИзФайлов() error {
 	if err == nil {
 		if err := json.Unmarshal(данные, &х.Ходы); err != nil {
 			return fmt.Errorf("ошибка загрузки ходов: %w", err)
+		}
+
+		for _, ход := range х.Ходы {
+			if ход.ID() >= х.nextMoveID {
+				х.nextMoveID = ход.ID() + 1
+			}
 		}
 	} else if !os.IsNotExist(err) {
 		return err
@@ -118,6 +137,7 @@ func (х *Хранилище) СохранитьВсе() error {
 	return nil
 }
 
+// =============ИГРОКИ=============
 func (х *Хранилище) СоздатьИгрока(игрок model.Игрок) model.Игрок {
 	х.mu.Lock()
 	defer х.mu.Unlock()
@@ -180,6 +200,7 @@ func (х *Хранилище) УдалитьИгрока(id int) error {
 	return fmt.Errorf("Игрок с ID %d не найден", id)
 }
 
+// =============ИГРЫ=============
 func (х *Хранилище) СоздатьИгру(игра model.Игра) model.Игра {
 	х.mu.Lock()
 	defer х.mu.Unlock()
@@ -242,6 +263,7 @@ func (х *Хранилище) УдалитьИгру(id int) error {
 	return fmt.Errorf("Игра с ID %d не найдена", id)
 }
 
+// =============ХОДЫ=============
 func (х *Хранилище) СоздатьХод(ход model.Ход) model.Ход {
 	х.mu.Lock()
 	defer х.mu.Unlock()

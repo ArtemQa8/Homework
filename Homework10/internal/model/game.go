@@ -532,7 +532,7 @@ func (и *Игра) СтрокиОтображенияБезИстории() []s
 }
 
 // MarshalJSON реализует сериализацию в JSON с сохранением приватных полей.
-func (и *Игра) MarshalJSON() ([]byte, error) {
+func (и Игра) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		ID      int        `json:"id"`
 		Игрок1  Игрок      `json:"игрок1"`

@@ -19,12 +19,7 @@ func main() {
 
 	роутер := gin.Default()
 
-	// GET /api/players
-	роутер.GET("/api/players", func(c *gin.Context) {
-		игроки := хранилище.ПолучитьВсехИгроков()
-		c.JSON(http.StatusOK, игроки)
-	})
-
+	// =============ИГРОКИ=============
 	// POST /api/players
 	роутер.POST("/api/players", func(c *gin.Context) {
 		var игрок model.Игрок
@@ -40,6 +35,12 @@ func main() {
 
 		созданный := хранилище.СоздатьИгрока(игрок)
 		c.JSON(http.StatusCreated, созданный)
+	})
+
+	// GET /api/players
+	роутер.GET("/api/players", func(c *gin.Context) {
+		игроки := хранилище.ПолучитьВсехИгроков()
+		c.JSON(http.StatusOK, игроки)
 	})
 
 	// GET /api/players/:id
@@ -102,6 +103,143 @@ func main() {
 			return
 		}
 
+		c.Status(http.StatusNoContent)
+	})
+
+	// =============ИГРЫ=============
+	// POST /api/games
+	роутер.POST("/api/games", func(c *gin.Context) {
+		var игра model.Игра
+		if err := c.ShouldBindJSON(&игра); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
+		// Сюда добавить проверки в будущем,
+		// что игроки, доска - не пустые значения
+
+		созданная := хранилище.СоздатьИгру(игра)
+		c.JSON(http.StatusCreated, созданная)
+	})
+
+	// GET /api/games
+	роутер.GET("/api/games", func(c *gin.Context) {
+		игры := хранилище.ПолучитьВсеИгры()
+		c.JSON(http.StatusOK, игры)
+	})
+
+	// GET /api/games/:id
+	роутер.GET("/api/games/:id", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
+			return
+		}
+		игра, найден := хранилище.ПолучитьИгруПоАйди(id)
+		if !найден {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": "игра не найдена"})
+			return
+		}
+		c.JSON(http.StatusOK, игра)
+	})
+
+	// PUT /api/games/:id
+	роутер.PUT("/api/games/:id", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
+			return
+		}
+		var игра model.Игра
+		if err := c.ShouldBindJSON(&игра); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
+		if err := хранилище.ОбновитьИгру(id, игра); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": err.Error()})
+			return
+		}
+		обновлённая, _ := хранилище.ПолучитьИгруПоАйди(id)
+		c.JSON(http.StatusOK, обновлённая)
+	})
+
+	// DELETE /api/games/:id
+	роутер.DELETE("/api/games/:id", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
+			return
+		}
+		if err := хранилище.УдалитьИгру(id); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": err.Error()})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	// =============ХОДЫ=============
+	// POST /api/moves
+	роутер.POST("/api/moves", func(c *gin.Context) {
+		var ход model.Ход
+		if err := c.ShouldBindJSON(&ход); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
+		созданный := хранилище.СоздатьХод(ход)
+		c.JSON(http.StatusCreated, созданный)
+	})
+
+	// GET /api/moves
+	роутер.GET("/api/moves", func(c *gin.Context) {
+		ходы := хранилище.ПолучитьВсеХоды()
+		c.JSON(http.StatusOK, ходы)
+	})
+
+	// GET /api/moves/:id
+	роутер.GET("/api/moves/:id", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
+			return
+		}
+		ход, найден := хранилище.ПолучитьХодПоАйди(id)
+		if !найден {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": "ход не найден"})
+			return
+		}
+		c.JSON(http.StatusOK, ход)
+	})
+
+	// PUT /api/moves/:id
+	роутер.PUT("/api/moves/:id", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
+			return
+		}
+		var ход model.Ход
+		if err := c.ShouldBindJSON(&ход); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
+		if err := хранилище.ОбновитьХод(id, ход); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": err.Error()})
+			return
+		}
+		обновлённый, _ := хранилище.ПолучитьХодПоАйди(id)
+		c.JSON(http.StatusOK, обновлённый)
+	})
+
+	// DELETE /api/moves/:id
+	роутер.DELETE("/api/moves/:id", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
+			return
+		}
+		if err := хранилище.УдалитьХод(id); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": err.Error()})
+			return
+		}
 		c.Status(http.StatusNoContent)
 	})
 
