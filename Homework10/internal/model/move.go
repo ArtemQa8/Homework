@@ -11,19 +11,23 @@ type Ход struct {
 	Шах                 bool
 	Мат                 bool
 	id                  int
+	играID              int
 }
 
 func НовыйХод(отСтр, отСтолб, вСтр, вСтолб int) *Ход {
 	return &Ход{ОтСтрока: отСтр, ОтСтолбец: отСтолб, ВСтрока: вСтр, ВСтолбец: вСтолб}
 }
 
-func (х Ход) ТипОбъекта() string   { return "ход" }
-func (х Ход) ID() int              { return х.id }
-func (х *Ход) УстановитьID(id int) { х.id = id }
+func (х Ход) ТипОбъекта() string       { return "ход" }
+func (х Ход) ID() int                  { return х.id }
+func (х *Ход) УстановитьID(id int)     { х.id = id }
+func (х Ход) ИграID() int              { return х.играID }
+func (х *Ход) УстановитьИграID(id int) { х.играID = id }
 
 // omitempty - Если наше поле будет "нулевым", то его не будет в джисоне
 func (х Ход) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
+		ИграID         int       `json:"играID"`
 		ID             int       `json:"id"`
 		ОтСтрока       int       `json:"отСтрока"`
 		ОтСтолбец      int       `json:"отСтолбец"`
@@ -35,6 +39,7 @@ func (х Ход) MarshalJSON() ([]byte, error) {
 		Шах            bool      `json:"шах,omitempty"`
 		Мат            bool      `json:"мат,omitempty"`
 	}{
+		ИграID:         х.играID,
 		ID:             х.id,
 		ОтСтрока:       х.ОтСтрока,
 		ОтСтолбец:      х.ОтСтолбец,
@@ -49,6 +54,7 @@ func (х Ход) MarshalJSON() ([]byte, error) {
 }
 func (х *Ход) UnmarshalJSON(data []byte) error {
 	var данные struct {
+		ИграID         int       `json:"играID"`
 		ID             int       `json:"id"`
 		ОтСтрока       int       `json:"отСтрока"`
 		ОтСтолбец      int       `json:"отСтолбец"`
@@ -63,6 +69,7 @@ func (х *Ход) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &данные); err != nil {
 		return err
 	}
+	х.играID = данные.ИграID
 	х.id = данные.ID
 	х.ОтСтрока = данные.ОтСтрока
 	х.ОтСтолбец = данные.ОтСтолбец

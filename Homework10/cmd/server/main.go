@@ -109,15 +109,44 @@ func main() {
 	// =============ИГРЫ=============
 	// POST /api/games
 	роутер.POST("/api/games", func(c *gin.Context) {
-		var игра model.Игра
-		if err := c.ShouldBindJSON(&игра); err != nil {
+		var вход struct {
+			Игрок1  model.Игрок `json:"игрок1"`
+			Игрок2  model.Игрок `json:"игрок2"`
+			Строки  int         `json:"строки"`
+			Столбцы int         `json:"столбцы"`
+		}
+		if err := c.ShouldBindJSON(&вход); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
 			return
 		}
-		// Сюда добавить проверки в будущем,
-		// что игроки, доска - не пустые значения
 
-		созданная := хранилище.СоздатьИгру(игра)
+		игра := model.Игра{}
+		игра.УстановитьИгрок1(вход.Игрок1)
+		игра.УстановитьИгрок2(вход.Игрок2)
+
+		if вход.Строки <= 0 || вход.Столбцы <= 0 {
+			вход.Строки, вход.Столбцы = 8, 8
+		}
+		игра.УстановитьДоску(model.НоваяДоска(вход.Строки, вход.Столбцы))
+
+		созданная, err := хранилище.СоздатьИгру(игра)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
+
+		игрок1 := созданная.Игрок1()
+		игрок2 := созданная.Игрок2()
+		игрок1.УстановитьЦвет(model.Белые)
+		игрок2.УстановитьЦвет(model.Чёрные)
+		созданная.УстановитьИгрок1(игрок1)
+		созданная.УстановитьИгрок2(игрок2)
+
+		if err := хранилище.ПерезаписатьИгру(созданная.ID(), созданная); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"ошибка": "не удалось сохранить игру"})
+			return
+		}
+
 		c.JSON(http.StatusCreated, созданная)
 	})
 
@@ -149,15 +178,18 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
 			return
 		}
+
 		var игра model.Игра
 		if err := c.ShouldBindJSON(&игра); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
 			return
 		}
+
 		if err := хранилище.ОбновитьИгру(id, игра); err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"ошибка": err.Error()})
 			return
 		}
+
 		обновлённая, _ := хранилище.ПолучитьИгруПоАйди(id)
 		c.JSON(http.StatusOK, обновлённая)
 	})
@@ -176,6 +208,62 @@ func main() {
 		c.Status(http.StatusNoContent)
 	})
 
+	роутер.POST("/api/games/:id/move", func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
+			return
+		}
+
+		var вход struct {
+			ОтСтрока    int             `json:"отСтрока"`
+			ОтСтолбец   int             `json:"отСтолбец"`
+			ВСтрока     int             `json:"вСтрока"`
+			ВСтолбец    int             `json:"вСтолбец"`
+			Превращение model.ТипФигуры `json:"превращение,omitempty"`
+		}
+
+		if err := c.ShouldBindJSON(&вход); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
+
+		игра, найдена := хранилище.ПолучитьИгруПоАйди(id)
+		if !найдена {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": "игра не найдена"})
+			return
+		}
+
+		ход := model.Ход{
+			ОтСтрока:    вход.ОтСтрока,
+			ОтСтолбец:   вход.ОтСтолбец,
+			ВСтрока:     вход.ВСтрока,
+			ВСтолбец:    вход.ВСтолбец,
+			Превращение: вход.Превращение,
+		}
+		ход.УстановитьИграID(id)
+
+		if err := игра.СделатьХод(&ход); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
+
+		сохранённыйХод, err := хранилище.СоздатьХод(ход)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"ошибка": "не удалось сохранить ход"})
+			return
+		}
+
+		игра.УстановитьIDПоследнегоХода(сохранённыйХод.ID())
+
+		if err := хранилище.ПерезаписатьИгру(id, игра); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"ошибка": "не удалось сохранить игру"})
+			return
+		}
+
+		c.JSON(http.StatusOK, игра)
+	})
+
 	// =============ХОДЫ=============
 	// POST /api/moves
 	роутер.POST("/api/moves", func(c *gin.Context) {
@@ -184,7 +272,11 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
 			return
 		}
-		созданный := хранилище.СоздатьХод(ход)
+		созданный, err := хранилище.СоздатьХод(ход)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
+			return
+		}
 		c.JSON(http.StatusCreated, созданный)
 	})
 
@@ -216,15 +308,24 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"ошибка": "неверный ID"})
 			return
 		}
+
+		_, найден := хранилище.ПолучитьХодПоАйди(id)
+		if !найден {
+			c.JSON(http.StatusNotFound, gin.H{"ошибка": "ход не найден"})
+			return
+		}
+
 		var ход model.Ход
 		if err := c.ShouldBindJSON(&ход); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"ошибка": err.Error()})
 			return
 		}
+
 		if err := хранилище.ОбновитьХод(id, ход); err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"ошибка": err.Error()})
 			return
 		}
+
 		обновлённый, _ := хранилище.ПолучитьХодПоАйди(id)
 		c.JSON(http.StatusOK, обновлённый)
 	})

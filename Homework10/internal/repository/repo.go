@@ -138,16 +138,71 @@ func (х *Хранилище) СохранитьВсе() error {
 }
 
 // =============ИГРОКИ=============
-func (х *Хранилище) СоздатьИгрока(игрок model.Игрок) model.Игрок {
-	х.mu.Lock()
-	defer х.mu.Unlock()
+// вызывать только под МЬЮТЕКСОМ!!!
+func (х *Хранилище) findPlayerByID(id int) (model.Игрок, bool) {
+	for _, игрок := range х.Игроки {
+		if игрок.ID() == id {
+			return игрок, true
+		}
+	}
+	return model.Игрок{}, false
+}
 
+// вызывать только под МЬЮТЕКСОМ!!!
+func (х *Хранилище) findPlayerByName(имя string) (model.Игрок, int, bool) {
+	найденные := []model.Игрок{}
+	for _, игрок := range х.Игроки {
+		if игрок.Имя() == имя {
+			найденные = append(найденные, игрок)
+		}
+	}
+	switch len(найденные) {
+	case 0:
+		return model.Игрок{}, 0, false
+	case 1:
+		return найденные[0], 1, true
+	default:
+		return model.Игрок{}, len(найденные), false
+	}
+}
+
+// вызывать только под МЬЮТЕКСОМ!!!
+func (х *Хранилище) addPlayer(игрок model.Игрок) model.Игрок {
 	игрок.УстановитьID(х.nextPlayerID)
 	х.nextPlayerID++
-
 	х.Игроки = append(х.Игроки, игрок)
 	_ = х.сохранитьИгроков()
 	return игрок
+}
+
+// вызывать только под МЬЮТЕКСОМ!!!
+func (х *Хранилище) resolvePlayer(игрок model.Игрок) (model.Игрок, error) {
+	if игрок.ID() != 0 {
+		найденный, ok := х.findPlayerByID(игрок.ID())
+		if !ok {
+			return model.Игрок{}, fmt.Errorf("Игрок с ID %d не найден", игрок.ID())
+		}
+		return найденный, nil
+	}
+
+	if игрок.Имя() == "" {
+		return model.Игрок{}, fmt.Errorf("Имя игрока обязательно")
+	}
+
+	найденный, количество, found := х.findPlayerByName(игрок.Имя())
+	if found {
+		return найденный, nil
+	}
+	if количество > 1 {
+		return model.Игрок{}, fmt.Errorf("Несколько игроков с именем %q, уточните ID", игрок.Имя())
+	}
+	return х.addPlayer(игрок), nil
+}
+
+func (х *Хранилище) СоздатьИгрока(игрок model.Игрок) model.Игрок {
+	х.mu.Lock()
+	defer х.mu.Unlock()
+	return х.addPlayer(игрок)
 }
 
 func (х *Хранилище) ПолучитьВсехИгроков() []model.Игрок {
@@ -162,13 +217,7 @@ func (х *Хранилище) ПолучитьВсехИгроков() []model.�
 func (х *Хранилище) ПолучитьИгрокаПоАйди(id int) (model.Игрок, bool) {
 	х.mu.Lock()
 	defer х.mu.Unlock()
-
-	for _, игрок := range х.Игроки {
-		if игрок.ID() == id {
-			return игрок, true
-		}
-	}
-	return model.Игрок{}, false
+	return х.findPlayerByID(id)
 }
 
 func (х *Хранилище) ОбновитьИгрока(id int, новыйИгрок model.Игрок) error {
@@ -201,16 +250,37 @@ func (х *Хранилище) УдалитьИгрока(id int) error {
 }
 
 // =============ИГРЫ=============
-func (х *Хранилище) СоздатьИгру(игра model.Игра) model.Игра {
+// Вызывать только под МЬЮТЕКСОМ!!!
+func (х *Хранилище) findGameByID(id int) (model.Игра, bool) {
+	for _, игра := range х.Игры {
+		if игра.ID() == id {
+			return игра, true
+		}
+	}
+	return model.Игра{}, false
+}
+
+func (х *Хранилище) СоздатьИгру(игра model.Игра) (model.Игра, error) {
 	х.mu.Lock()
 	defer х.mu.Unlock()
+
+	игрок1, err := х.resolvePlayer(игра.Игрок1())
+	if err != nil {
+		return model.Игра{}, err
+	}
+	игрок2, err := х.resolvePlayer(игра.Игрок2())
+	if err != nil {
+		return model.Игра{}, err
+	}
+	игра.УстановитьИгрок1(игрок1)
+	игра.УстановитьИгрок2(игрок2)
 
 	игра.УстановитьID(х.nextGameID)
 	х.nextGameID++
 
 	х.Игры = append(х.Игры, игра)
 	_ = х.сохранитьИгры()
-	return игра
+	return игра, nil
 }
 
 func (х *Хранилище) ПолучитьВсеИгры() []model.Игра {
@@ -238,6 +308,17 @@ func (х *Хранилище) ОбновитьИгру(id int, новаяИгр�
 	х.mu.Lock()
 	defer х.mu.Unlock()
 
+	игрок1, err := х.resolvePlayer(новаяИгра.Игрок1())
+	if err != nil {
+		return err
+	}
+	игрок2, err := х.resolvePlayer(новаяИгра.Игрок2())
+	if err != nil {
+		return err
+	}
+	новаяИгра.УстановитьИгрок1(игрок1)
+	новаяИгра.УстановитьИгрок2(игрок2)
+
 	for i := range х.Игры {
 		if х.Игры[i].ID() == id {
 			новаяИгра.УстановитьID(id)
@@ -263,17 +344,38 @@ func (х *Хранилище) УдалитьИгру(id int) error {
 	return fmt.Errorf("Игра с ID %d не найдена", id)
 }
 
-// =============ХОДЫ=============
-func (х *Хранилище) СоздатьХод(ход model.Ход) model.Ход {
+func (х *Хранилище) ПерезаписатьИгру(id int, новаяИгра model.Игра) error {
 	х.mu.Lock()
 	defer х.mu.Unlock()
+
+	for i := range х.Игры {
+		if х.Игры[i].ID() == id {
+			новаяИгра.УстановитьID(id)
+			х.Игры[i] = новаяИгра
+			return х.сохранитьИгры()
+		}
+	}
+	return fmt.Errorf("Игра с ID %d не найдена", id)
+}
+
+// =============ХОДЫ=============
+func (х *Хранилище) СоздатьХод(ход model.Ход) (model.Ход, error) {
+	х.mu.Lock()
+	defer х.mu.Unlock()
+
+	if ход.ИграID() == 0 {
+		return model.Ход{}, fmt.Errorf("играID обязателен для хода")
+	}
+	if _, ok := х.findGameByID(ход.ИграID()); !ok {
+		return model.Ход{}, fmt.Errorf("Игра с ID %d не найдена", ход.ИграID())
+	}
 
 	ход.УстановитьID(х.nextMoveID)
 	х.nextMoveID++
 
 	х.Ходы = append(х.Ходы, ход)
 	_ = х.сохранитьХоды()
-	return ход
+	return ход, nil
 }
 
 func (х *Хранилище) ПолучитьВсеХоды() []model.Ход {
@@ -300,6 +402,13 @@ func (х *Хранилище) ПолучитьХодПоАйди(id int) (model.
 func (х *Хранилище) ОбновитьХод(id int, новыйХод model.Ход) error {
 	х.mu.Lock()
 	defer х.mu.Unlock()
+
+	if новыйХод.ИграID() == 0 {
+		return fmt.Errorf("играID обязателен для хода")
+	}
+	if _, ok := х.findGameByID(новыйХод.ИграID()); !ok {
+		return fmt.Errorf("Игра с ID %d не найдена", новыйХод.ИграID())
+	}
 
 	for i := range х.Ходы {
 		if х.Ходы[i].ID() == id {
