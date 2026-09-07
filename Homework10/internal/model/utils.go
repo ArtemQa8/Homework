@@ -95,3 +95,38 @@ type СостояниеПартии struct {
 	ВремяХода    time.Duration
 	Завершена    bool
 }
+
+// РодительныйЦвет возвращает название цвета в родительном падеже
+func РодительныйЦвет(цвет ЦветФигуры) string {
+	if цвет == Белые {
+		return "Белых"
+	}
+	return "Чёрных"
+}
+
+func ВидимаяДлина(строка string) int {
+	длина := 0
+	внутриEscape := false
+	for _, r := range строка {
+		if внутриEscape {
+			if r == 'm' {
+				внутриEscape = false
+			}
+			continue
+		}
+		if r == '\033' {
+			внутриEscape = true
+			continue
+		}
+		длина++
+	}
+	return длина
+}
+
+func ДополнитьПробелами(строка string, ширина int) string {
+	текущая := ВидимаяДлина(строка)
+	if текущая >= ширина {
+		return строка
+	}
+	return строка + strings.Repeat(" ", ширина-текущая)
+}
