@@ -1,0 +1,687 @@
+basePath: /
+definitions:
+  mod_go_internal_dto.AutoMoveResponse:
+    properties:
+      игра:
+        $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+      мат:
+        type: boolean
+      пат:
+        type: boolean
+      победитель:
+        type: string
+    type: object
+  mod_go_internal_dto.BoardResponse:
+    properties:
+      клетки:
+        items:
+          items:
+            $ref: '#/definitions/mod_go_internal_dto.PieceResponse'
+          type: array
+        type: array
+      столбцы:
+        type: integer
+      строки:
+        type: integer
+    type: object
+  mod_go_internal_dto.CreateGameRequest:
+    properties:
+      игрок1:
+        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+      игрок2:
+        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+      столбцы:
+        type: integer
+      строки:
+        type: integer
+    type: object
+  mod_go_internal_dto.GameResponse:
+    properties:
+      id:
+        type: integer
+      доска:
+        $ref: '#/definitions/mod_go_internal_dto.BoardResponse'
+      игрок1:
+        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+      игрок2:
+        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+      текущий:
+        type: string
+      ходы:
+        items:
+          $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+        type: array
+    type: object
+  mod_go_internal_dto.MakeMoveRequest:
+    properties:
+      вСтолбец:
+        type: integer
+      вСтрока:
+        type: integer
+      отСтолбец:
+        type: integer
+      отСтрока:
+        type: integer
+      превращение:
+        type: string
+    type: object
+  mod_go_internal_dto.MoveResponse:
+    properties:
+      id:
+        type: integer
+      вСтолбец:
+        type: integer
+      вСтрока:
+        type: integer
+      играID:
+        type: integer
+      мат:
+        type: boolean
+      отСтолбец:
+        type: integer
+      отСтрока:
+        type: integer
+      превращение:
+        type: string
+      съедена:
+        $ref: '#/definitions/mod_go_internal_dto.PieceResponse'
+      ходившаяФигура:
+        $ref: '#/definitions/mod_go_internal_dto.PieceResponse'
+      шах:
+        type: boolean
+    type: object
+  mod_go_internal_dto.PieceResponse:
+    properties:
+      тип:
+        type: string
+      цвет:
+        type: string
+    type: object
+  mod_go_internal_dto.PlayerResponse:
+    properties:
+      id:
+        type: integer
+      имя:
+        type: string
+      цвет:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: 'REST API для шахматного сервера: игроки, игры, ходы и выполнение ходов.'
+  title: Шахматный API
+  version: "1.0"
+paths:
+  /api/games:
+    get:
+      description: Возвращает массив игр из хранилища.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить все игры
+      tags:
+      - games
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новую игру с указанными игроками и размерами доски.
+      parameters:
+      - description: Данные игры
+        in: body
+        name: game
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.CreateGameRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Создать игру
+      tags:
+      - games
+  /api/games/{id}:
+    delete:
+      description: Удаляет игру с указанным ID.
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Удалить игру
+      tags:
+      - games
+    get:
+      description: Возвращает одну игру по её идентификатору.
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить игру по ID
+      tags:
+      - games
+    put:
+      consumes:
+      - application/json
+      description: Обновляет игроков и/или размеры игры с указанным ID.
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Новые данные игры
+        in: body
+        name: game
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновить игру
+      tags:
+      - games
+  /api/games/{id}/auto-move:
+    post:
+      description: Выбирает и выполняет случайный легальный ход за текущего игрока.
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.AutoMoveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Случайный ход
+      tags:
+      - games
+  /api/games/{id}/move:
+    post:
+      consumes:
+      - application/json
+      description: Выполняет ход в игре с указанным ID, проверяя правила шахмат.
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Координаты хода
+        in: body
+        name: move
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.MakeMoveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Сделать ход
+      tags:
+      - games
+  /api/moves:
+    get:
+      description: Возвращает массив всех ходов из хранилища.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить все ходы
+      tags:
+      - moves
+    post:
+      consumes:
+      - application/json
+      description: Сохраняет ход в хранилище (без применения к доске).
+      parameters:
+      - description: Данные хода
+        in: body
+        name: move
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Создать ход
+      tags:
+      - moves
+  /api/moves/{id}:
+    delete:
+      description: Удаляет ход с указанным ID.
+      parameters:
+      - description: ID хода
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Удалить ход
+      tags:
+      - moves
+    get:
+      description: Возвращает один ход по его идентификатору.
+      parameters:
+      - description: ID хода
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить ход по ID
+      tags:
+      - moves
+    put:
+      consumes:
+      - application/json
+      description: Обновляет данные хода с указанным ID.
+      parameters:
+      - description: ID хода
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Новые данные хода
+        in: body
+        name: move
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновить ход
+      tags:
+      - moves
+  /api/players:
+    get:
+      description: Возвращает массив игроков из хранилища.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить всех игроков
+      tags:
+      - players
+    post:
+      consumes:
+      - application/json
+      description: Создаёт нового игрока и возвращает его с присвоенным ID.
+      parameters:
+      - description: Данные игрока
+        in: body
+        name: player
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Создать игрока
+      tags:
+      - players
+  /api/players/{id}:
+    delete:
+      description: Удаляет игрока с указанным ID.
+      parameters:
+      - description: ID игрока
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Удалить игрока
+      tags:
+      - players
+    get:
+      description: Возвращает одного игрока по его идентификатору.
+      parameters:
+      - description: ID игрока
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить игрока по ID
+      tags:
+      - players
+    put:
+      consumes:
+      - application/json
+      description: Обновляет имя/цвет игрока с указанным ID.
+      parameters:
+      - description: ID игрока
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Новые данные игрока
+        in: body
+        name: player
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновить игрока
+      tags:
+      - players
+securityDefinitions:
+  BearerAuth:
+    description: 'Введите JWT-токен в формате: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
