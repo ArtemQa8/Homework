@@ -15,6 +15,7 @@ import (
 	_ "mod.go/docs"
 
 	"github.com/gin-gonic/gin"
+	"mod.go/internal/config"
 	"mod.go/internal/repository"
 )
 
@@ -29,12 +30,21 @@ import (
 // @name Authorization
 // @description Введите JWT-токен в формате: Bearer <token>
 func main() {
+	loadedCfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Ошибка загрузки конфига: %v", err)
+	}
+	cfg = loadedCfg
+
 	storage = repository.NewStorage()
 	if err := storage.LoadFromFiles(); err != nil {
 		log.Fatalf("Ошибка загрузки данных: %v", err)
 	}
 
 	router := gin.Default()
+
+	// Авторизация
+	router.POST("/api/login", Login)
 
 	// Игроки
 	router.POST("/api/players", CreatePlayer)

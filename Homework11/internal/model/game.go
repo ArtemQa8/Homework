@@ -10,12 +10,14 @@ import (
 )
 
 type Game struct {
-	player1 Player
-	player2 Player
-	board   *Board
-	current Color
-	moves   []Move
-	id      int
+	player1      Player
+	player2      Player
+	player1Color Color
+	player2Color Color
+	board        *Board
+	current      Color
+	moves        []Move
+	id           int
 
 	whiteKingMoved  bool
 	blackKingMoved  bool
@@ -27,10 +29,12 @@ type Game struct {
 
 func NewGame(name1, name2 string, rows, cols int) *Game {
 	return &Game{
-		player1: *NewPlayer(name1, White),
-		player2: *NewPlayer(name2, Black),
-		board:   NewBoard(rows, cols),
-		current: White,
+		player1:      *NewPlayer(name1),
+		player2:      *NewPlayer(name2),
+		player1Color: White,
+		player2Color: Black,
+		board:        NewBoard(rows, cols),
+		current:      White,
 	}
 }
 
@@ -43,6 +47,12 @@ func (g *Game) SetID(id int)        { g.id = id }
 
 func (g *Game) SetPlayer1(player Player) { g.player1 = player }
 func (g *Game) SetPlayer2(player Player) { g.player2 = player }
+
+func (g *Game) Player1Color() Color { return g.player1Color }
+func (g *Game) Player2Color() Color { return g.player2Color }
+
+func (g *Game) SetPlayer1Color(color Color) { g.player1Color = color }
+func (g *Game) SetPlayer2Color(color Color) { g.player2Color = color }
 
 func (g *Game) Moves() []Move {
 	result := make([]Move, len(g.moves))
@@ -323,6 +333,23 @@ func (g *Game) MakeMove(move *Move) error {
 		return fmt.Errorf("%s так не ходит", pieceName(piece.Type()))
 	}
 
+	// Пешка идёт на последний ряд — обязателен выбор фигуры превращения.
+	// Проверка идёт ПОСЛЕ проверки правил хода, чтобы при нелегальном ходе
+	// (например, e2→e8) вернулась ошибка «пешка так не ходит», а не про превращение.
+	if piece.Type() == Pawn {
+		lastRow := 0
+		if piece.Color() == White {
+			lastRow = g.board.Rows() - 1
+		}
+		if move.ToRow == lastRow {
+			switch move.Promotion {
+			case Knight, Bishop, Rook, Queen:
+			default:
+				return errors.New("требуется выбрать фигуру для превращения: конь, слон, ладья или ферзь")
+			}
+		}
+	}
+
 	enemy := g.board.PieceAt(move.ToRow, move.ToCol)
 	if !enPassant && enemy != nil && enemy.Color() == g.current {
 		return errors.New("нельзя бить свою фигуру")
@@ -563,12 +590,19 @@ func (g *Game) RenderLinesWithoutHistory() []string {
 	return full
 }
 
-// MarshalJSON реализует сериализацию в JSON с сохранением приватных полей.
 func (g Game) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		ID      int    `json:"id"`
-		Player1 Player `json:"игрок1"`
-		Player2 Player `json:"игрок2"`
+		ID      int `json:"id"`
+		Player1 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок1"`
+		Player2 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок2"`
 		Board   *Board `json:"доска"`
 		Current Color  `json:"текущий"`
 		Moves   []Move `json:"ходы"`
@@ -580,9 +614,17 @@ func (g Game) MarshalJSON() ([]byte, error) {
 		BlackRookAMoved bool `json:"чёрнаяЛадьяAДвигалась,omitempty"`
 		BlackRookHMoved bool `json:"чёрнаяЛадьяHДвигалась,omitempty"`
 	}{
-		ID:      g.id,
-		Player1: g.player1,
-		Player2: g.player2,
+		ID: g.id,
+		Player1: struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		}{ID: g.player1.ID(), Name: g.player1.Name(), Color: g.player1Color},
+		Player2: struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		}{ID: g.player2.ID(), Name: g.player2.Name(), Color: g.player2Color},
 		Board:   g.board,
 		Current: g.current,
 		Moves:   g.moves,
@@ -596,12 +638,19 @@ func (g Game) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON реализует десериализацию из JSON с заполнением приватных полей.
 func (g *Game) UnmarshalJSON(data []byte) error {
 	var payload struct {
-		ID      int    `json:"id"`
-		Player1 Player `json:"игрок1"`
-		Player2 Player `json:"игрок2"`
+		ID      int `json:"id"`
+		Player1 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок1"`
+		Player2 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок2"`
 		Board   *Board `json:"доска"`
 		Current Color  `json:"текущий"`
 		Moves   []Move `json:"ходы"`
@@ -618,8 +667,12 @@ func (g *Game) UnmarshalJSON(data []byte) error {
 	}
 
 	g.id = payload.ID
-	g.player1 = payload.Player1
-	g.player2 = payload.Player2
+	g.player1 = *NewPlayer(payload.Player1.Name)
+	g.player1.SetID(payload.Player1.ID)
+	g.player1Color = payload.Player1.Color
+	g.player2 = *NewPlayer(payload.Player2.Name)
+	g.player2.SetID(payload.Player2.ID)
+	g.player2Color = payload.Player2.Color
 	g.board = payload.Board
 	g.current = payload.Current
 	g.moves = payload.Moves

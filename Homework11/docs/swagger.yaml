@@ -52,6 +52,18 @@ definitions:
           $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
         type: array
     type: object
+  mod_go_internal_dto.LoginRequest:
+    properties:
+      логин:
+        type: string
+      пароль:
+        type: string
+    type: object
+  mod_go_internal_dto.LoginResponse:
+    properties:
+      токен:
+        type: string
+    type: object
   mod_go_internal_dto.MakeMoveRequest:
     properties:
       вСтолбец:
@@ -63,6 +75,7 @@ definitions:
       отСтрока:
         type: integer
       превращение:
+        example: ферзь
         type: string
     type: object
   mod_go_internal_dto.MoveResponse:
@@ -356,6 +369,40 @@ paths:
       summary: Сделать ход
       tags:
       - games
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      description: Проверяет логин и пароль, при успехе возвращает JWT-токен.
+      parameters:
+      - description: Логин и пароль
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/mod_go_internal_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/mod_go_internal_dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Войти
+      tags:
+      - auth
   /api/moves:
     get:
       description: Возвращает массив всех ходов из хранилища.

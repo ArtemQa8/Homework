@@ -1,5 +1,7 @@
 package dto
 
+import "mod.go/internal/model"
+
 // CreateGameRequest описывает тело запроса для создания новой игры.
 type CreateGameRequest struct {
 	Player1 PlayerResponse `json:"игрок1"`
@@ -10,11 +12,11 @@ type CreateGameRequest struct {
 
 // MakeMoveRequest описывает тело запроса для выполнения хода.
 type MakeMoveRequest struct {
-	FromRow   int    `json:"отСтрока"`
-	FromCol   int    `json:"отСтолбец"`
-	ToRow     int    `json:"вСтрока"`
-	ToCol     int    `json:"вСтолбец"`
-	Promotion string `json:"превращение,omitempty"`
+	FromRow   int              `json:"отСтрока"`
+	FromCol   int              `json:"отСтолбец"`
+	ToRow     int              `json:"вСтрока"`
+	ToCol     int              `json:"вСтолбец"`
+	Promotion *model.PieceType `json:"превращение,omitempty" swaggertype:"string" example:"ферзь"`
 }
 
 // PlayerResponse описывает JSON-ответ с данными игрока.
@@ -68,4 +70,15 @@ type AutoMoveResponse struct {
 	Mate      bool         `json:"мат,omitempty"`
 	Stalemate bool         `json:"пат,omitempty"`
 	Winner    string       `json:"победитель,omitempty"`
+}
+
+// LoginRequest описывает тело запроса на логин.
+type LoginRequest struct {
+	Login    string `json:"логин"`
+	Password string `json:"пароль"`
+}
+
+// LoginResponse описывает ответ при успешном логине.
+type LoginResponse struct {
+	Token string `json:"токен"`
 }

@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type Color int
@@ -137,6 +138,25 @@ func (p *Piece) Symbol() string {
 	return " "
 }
 
+// ParsePieceType разбирает строковое название фигуры (RU/EN, любой регистр).
+func ParsePieceType(s string) (PieceType, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "пешка":
+		return Pawn, nil
+	case "ладья", "л", "r", "rook":
+		return Rook, nil
+	case "конь", "к", "n", "knight":
+		return Knight, nil
+	case "слон", "с", "b", "bishop":
+		return Bishop, nil
+	case "ферзь", "ф", "q", "queen":
+		return Queen, nil
+	case "король":
+		return King, nil
+	}
+	return 0, fmt.Errorf("неизвестный тип фигуры: %q", s)
+}
+
 // MarshalJSON реализует сериализацию в JSON с сохранением приватных полей.
 func (p Piece) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
@@ -205,23 +225,31 @@ func (t PieceType) MarshalJSON() ([]byte, error) {
 	return []byte(`"Неизвестно"`), nil
 }
 
-// UnmarshalJSON превращает строку обратно в PieceType.
+// UnmarshalJSON превращает строку (или пустую строку/null) в PieceType.
 func (t *PieceType) UnmarshalJSON(data []byte) error {
-	switch string(data) {
-	case `"Пешка"`, `"пешка"`:
+	s := string(data)
+
+	// null → считаем, что поле не задано
+	if s == "null" {
 		*t = Pawn
-	case `"Ладья"`, `"ладья"`:
-		*t = Rook
-	case `"Конь"`, `"конь"`:
-		*t = Knight
-	case `"Слон"`, `"слон"`:
-		*t = Bishop
-	case `"Ферзь"`, `"ферзь"`:
-		*t = Queen
-	case `"Король"`, `"король"`:
-		*t = King
-	default:
-		return fmt.Errorf("неизвестный тип фигуры: %s", string(data))
+		return nil
 	}
+
+	// снимаем кавычки JSON-строки
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		s = s[1 : len(s)-1]
+	}
+
+	// пустая строка (Swagger может прислать "") → поле не задано
+	if s == "" {
+		*t = Pawn
+		return nil
+	}
+
+	pt, err := ParsePieceType(s)
+	if err != nil {
+		return err
+	}
+	*t = pt
 	return nil
 }

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"mod.go/internal/auth"
+	"mod.go/internal/config"
 	"mod.go/internal/dto"
 	"mod.go/internal/model"
 	"mod.go/internal/repository"
@@ -14,6 +16,39 @@ import (
 )
 
 var storage *repository.Storage
+var cfg *config.Config
+
+// Login выполняет авторизацию и выдаёт JWT.
+// @Summary      Войти
+// @Description  Проверяет логин и пароль, при успехе возвращает JWT-токен.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        credentials  body      dto.LoginRequest   true  "Логин и пароль"
+// @Success      200          {object}  dto.LoginResponse
+// @Failure      400          {object}  map[string]string
+// @Failure      401          {object}  map[string]string
+// @Router       /api/login [post]
+func Login(c *gin.Context) {
+	var req dto.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		return
+	}
+
+	if req.Login != cfg.Login || req.Password != cfg.Password {
+		c.JSON(http.StatusUnauthorized, gin.H{"Ошибка": "неверный логин или пароль"})
+		return
+	}
+
+	token, err := auth.GenerateToken(req.Login, cfg.JWTSecret, cfg.JWTTTL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"Ошибка": "не удалось создать токен"})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.LoginResponse{Token: token})
+}
 
 // =============PLAYERS=============
 
@@ -158,29 +193,40 @@ func CreateGame(c *gin.Context) {
 		return
 	}
 
-	game := model.Game{}
-	game.SetPlayer1(model.Player{})
-	game.SetPlayer2(model.Player{})
+	p1 := model.NewPlayer(req.Player1.Name)
+	p2 := model.NewPlayer(req.Player2.Name)
+	if req.Player1.ID != 0 {
+		p1.SetID(req.Player1.ID)
+	}
+	if req.Player2.ID != 0 {
+		p2.SetID(req.Player2.ID)
+	}
 
-	game, err := storage.CreateGame(game)
+	game := model.Game{}
+	game.SetPlayer1(*p1)
+	game.SetPlayer2(*p2)
+
+	if req.Rows <= 0 || req.Cols <= 0 {
+		req.Rows, req.Cols = 8, 8
+	}
+	game.SetBoard(model.NewBoard(req.Rows, req.Cols))
+
+	created, err := storage.CreateGame(game)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
 		return
 	}
 
-	p1 := game.Player1()
-	p2 := game.Player2()
-	p1.SetColor(model.White)
-	p2.SetColor(model.Black)
-	game.SetPlayer1(p1)
-	game.SetPlayer2(p2)
+	// Назначаем цвета партии: первый игрок — белые, второй — чёрные
+	created.SetPlayer1Color(model.White)
+	created.SetPlayer2Color(model.Black)
 
-	if err := storage.OverwriteGame(game.ID(), game); err != nil {
+	if err := storage.OverwriteGame(created.ID(), created); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Ошибка": "не удалось сохранить игру"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, game)
+	c.JSON(http.StatusCreated, created)
 }
 
 // GetGames возвращает список всех игр.
@@ -313,6 +359,10 @@ func MakeMove(c *gin.Context) {
 		ToRow:   req.ToRow,
 		ToCol:   req.ToCol,
 	}
+	if req.Promotion != nil {
+		move.Promotion = *req.Promotion
+	}
+
 	move.SetGameID(id)
 
 	if err := game.MakeMove(&move); err != nil {
@@ -735,12 +785,12 @@ func toGameResponse(game model.Game) dto.GameResponse {
 		Player1: dto.PlayerResponse{
 			ID:    game.Player1().ID(),
 			Name:  game.Player1().Name(),
-			Color: colorToString(game.Player1().Color()),
+			Color: colorToString(game.Player1Color()),
 		},
 		Player2: dto.PlayerResponse{
 			ID:    game.Player2().ID(),
 			Name:  game.Player2().Name(),
-			Color: colorToString(game.Player2().Color()),
+			Color: colorToString(game.Player2Color()),
 		},
 		Board:   board,
 		Current: colorToString(game.CurrentColor()),

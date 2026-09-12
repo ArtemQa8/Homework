@@ -382,6 +382,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/login": {
+            "post": {
+                "description": "Проверяет логин и пароль, при успехе возвращает JWT-токен.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Войти",
+                "parameters": [
+                    {
+                        "description": "Логин и пароль",
+                        "name": "credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/mod_go_internal_dto.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/mod_go_internal_dto.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/moves": {
             "get": {
                 "description": "Возвращает массив всех ходов из хранилища.",
@@ -950,6 +1002,25 @@ const docTemplate = `{
                 }
             }
         },
+        "mod_go_internal_dto.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "логин": {
+                    "type": "string"
+                },
+                "пароль": {
+                    "type": "string"
+                }
+            }
+        },
+        "mod_go_internal_dto.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "токен": {
+                    "type": "string"
+                }
+            }
+        },
         "mod_go_internal_dto.MakeMoveRequest": {
             "type": "object",
             "properties": {
@@ -966,7 +1037,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "превращение": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "ферзь"
                 }
             }
         },

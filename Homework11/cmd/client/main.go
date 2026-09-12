@@ -262,6 +262,27 @@ func printPrompt(game model.Game) {
 	fmt.Println("Введите ход (например: e2 e4) или 'help':")
 }
 
+func askPromotion(inputChan chan string) (model.PieceType, bool) {
+	for {
+		fmt.Print("Во что превратить пешку? (ферзь, ладья, конь, слон): ")
+		input, ok := readString(inputChan)
+		if !ok {
+			return 0, false
+		}
+		pt, err := model.ParsePieceType(input)
+		if err != nil {
+			fmt.Println("Ошибка:", err)
+			continue
+		}
+		switch pt {
+		case model.Queen, model.Rook, model.Bishop, model.Knight:
+			return pt, true
+		default:
+			fmt.Println("Можно превратить только в ферзя, ладью, слона или коня.")
+		}
+	}
+}
+
 func gameSession(id int, inputChan chan string) error {
 	game, err := fetchGame(id)
 	if err != nil {
@@ -436,6 +457,27 @@ func gameSession(id int, inputChan chan string) error {
 			ToCol:   toCol,
 		}
 
+		// Если это пешка, которая может дойти до последнего ряда — спросить фигуру.
+		// Спрашиваем ТОЛЬКО если ход легален по правилам пешки: при нелегальном
+		// (например, e2→e8) сервер вернёт «пешка так не ходит», а не запрос превращения.
+		if piece := game.Board().PieceAt(fromRow, fromCol); piece != nil && piece.Type() == model.Pawn {
+			lastRow := 0
+			if piece.Color() == model.White {
+				lastRow = game.Board().Rows() - 1
+			}
+			if toRow == lastRow {
+				if rules := model.RulesFor(piece); rules != nil && rules.CanMove(&move, game.Board()) {
+					promo, ok := askPromotion(inputChan)
+					if !ok {
+						muGame.Unlock()
+						printPrompt(game)
+						continue
+					}
+					move.Promotion = promo
+				}
+			}
+		}
+
 		updated, err := makeMove(id, move)
 		if err != nil {
 			fmt.Println("Ошибка:", err)
@@ -509,8 +551,8 @@ func createGame(name1, name2 string, rows, cols int) (model.Game, error) {
 		Rows    int          `json:"строки"`
 		Cols    int          `json:"столбцы"`
 	}{
-		Player1: *model.NewPlayer(name1, model.White),
-		Player2: *model.NewPlayer(name2, model.Black),
+		Player1: *model.NewPlayer(name1),
+		Player2: *model.NewPlayer(name2),
 		Rows:    rows,
 		Cols:    cols,
 	}
@@ -539,17 +581,20 @@ func createGame(name1, name2 string, rows, cols int) (model.Game, error) {
 func makeMove(id int, move model.Move) (model.Game, error) {
 	var game model.Game
 	data := struct {
-		FromRow   int             `json:"отСтрока"`
-		FromCol   int             `json:"отСтолбец"`
-		ToRow     int             `json:"вСтрока"`
-		ToCol     int             `json:"вСтолбец"`
-		Promotion model.PieceType `json:"превращение,omitempty"`
+		FromRow   int              `json:"отСтрока"`
+		FromCol   int              `json:"отСтолбец"`
+		ToRow     int              `json:"вСтрока"`
+		ToCol     int              `json:"вСтолбец"`
+		Promotion *model.PieceType `json:"превращение,omitempty"`
 	}{
-		FromRow:   move.FromRow,
-		FromCol:   move.FromCol,
-		ToRow:     move.ToRow,
-		ToCol:     move.ToCol,
-		Promotion: move.Promotion,
+		FromRow: move.FromRow,
+		FromCol: move.FromCol,
+		ToRow:   move.ToRow,
+		ToCol:   move.ToCol,
+	}
+	if move.Promotion != 0 {
+		p := move.Promotion
+		data.Promotion = &p
 	}
 
 	body, err := json.Marshal(data)
