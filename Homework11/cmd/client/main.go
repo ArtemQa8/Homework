@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -27,6 +28,8 @@ var (
 	muSim     sync.Mutex
 	sims      []*Simulation
 )
+
+var authToken string
 
 type Simulation struct {
 	ID       int
@@ -57,6 +60,11 @@ func main() {
 		}
 		close(inputChan)
 	}()
+
+	if err := doLogin(inputChan); err != nil {
+		fmt.Printf("Ошибка входа: %v\n", err)
+		os.Exit(1)
+	}
 
 	if *gameIDFlag > 0 {
 		if err := gameSession(*gameIDFlag, inputChan); err != nil {
@@ -119,6 +127,85 @@ func readInt(inputChan chan string) (int, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// doLogin запрашивает логин/пароль и получает JWT от сервера.
+// Повторяет попытки, пока не получит токен или пока ввод не закроется.
+func doLogin(inputChan chan string) error {
+	for {
+		fmt.Print("Логин: ")
+		login, ok := readString(inputChan)
+		if !ok {
+			return fmt.Errorf("ввод закрыт")
+		}
+		fmt.Print("Пароль: ")
+		password, ok := readString(inputChan)
+		if !ok {
+			return fmt.Errorf("ввод закрыт")
+		}
+
+		token, err := loginRequest(login, password)
+		if err != nil {
+			fmt.Printf("Ошибка входа: %v\n", err)
+			fmt.Println("Попробуйте снова.")
+			continue
+		}
+		authToken = token
+		fmt.Println("Успешный вход.")
+		return nil
+	}
+}
+
+// loginRequest шлёт POST /api/login и возвращает токен.
+func loginRequest(login, password string) (string, error) {
+	data := struct {
+		Login    string `json:"логин"`
+		Password string `json:"пароль"`
+	}{Login: login, Password: password}
+
+	body, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := httpClient.Post(
+		fmt.Sprintf("%s/api/login", *serverAddr),
+		"application/json",
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]string
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		return "", fmt.Errorf("сервер вернул статус %d: %s", resp.StatusCode, errResp["Ошибка"])
+	}
+
+	var respData struct {
+		Token string `json:"токен"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+		return "", err
+	}
+	return respData.Token, nil
+}
+
+// postAuth делает POST с заголовком Authorization: Bearer <authToken>.
+func postAuth(url string, body []byte) (*http.Response, error) {
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	req, err := http.NewRequest(http.MethodPost, url, reader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authToken)
+	return httpClient.Do(req)
 }
 
 func createNewGame(inputChan chan string) error {
@@ -562,7 +649,7 @@ func createGame(name1, name2 string, rows, cols int) (model.Game, error) {
 		return game, err
 	}
 
-	resp, err := httpClient.Post(fmt.Sprintf("%s/api/games", *serverAddr), "application/json", bytes.NewReader(body))
+	resp, err := postAuth(fmt.Sprintf("%s/api/games", *serverAddr), body)
 	if err != nil {
 		return game, err
 	}
@@ -602,11 +689,7 @@ func makeMove(id int, move model.Move) (model.Game, error) {
 		return game, err
 	}
 
-	resp, err := httpClient.Post(
-		fmt.Sprintf("%s/api/games/%d/move", *serverAddr, id),
-		"application/json",
-		bytes.NewReader(body),
-	)
+	resp, err := postAuth(fmt.Sprintf("%s/api/games/%d/move", *serverAddr, id), body)
 	if err != nil {
 		return game, err
 	}
@@ -630,11 +713,7 @@ func makeAutoMove(id int) (model.Game, bool, bool, model.Color, error) {
 		Winner    model.Color `json:"победитель,omitempty"`
 	}
 
-	httpResp, err := httpClient.Post(
-		fmt.Sprintf("%s/api/games/%d/auto-move", *serverAddr, id),
-		"application/json",
-		nil,
-	)
+	httpResp, err := postAuth(fmt.Sprintf("%s/api/games/%d/auto-move", *serverAddr, id), nil)
 	if err != nil {
 		return model.Game{}, false, false, model.White, err
 	}
@@ -829,9 +908,9 @@ func startSimulationsRenderer() {
 				name1 := sim.Game.Player1().Name()
 				name2 := sim.Game.Player2().Name()
 				if sim.Finished {
-					fmt.Printf("#%d %s vs %s: %s (завершена)\n", i+1, name1, name2, sim.LastMove)
+					fmt.Printf("#%d %s - %s: %s (завершена)\n", i+1, name1, name2, sim.LastMove)
 				} else {
-					fmt.Printf("#%d %s vs %s: %s за %v\n", i+1, name1, name2, sim.LastMove, sim.MoveTime.Round(time.Millisecond))
+					fmt.Printf("#%d %s - %s: %s за %v\n", i+1, name1, name2, sim.LastMove, sim.MoveTime.Round(time.Millisecond))
 				}
 			}
 			muSim.Unlock()

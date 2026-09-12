@@ -43,37 +43,48 @@ func main() {
 
 	router := gin.Default()
 
-	// Авторизация
+	// ============ Открытые роуты (без авторизации) ============
+
+	// Логин — доступен всем, иначе не залогиниться
 	router.POST("/api/login", Login)
 
-	// Игроки
-	router.POST("/api/players", CreatePlayer)
+	// Просмотр (GET) — открыт для наблюдателей и клиента
 	router.GET("/api/players", GetPlayers)
 	router.GET("/api/players/:id", GetPlayerByID)
-	router.PUT("/api/players/:id", UpdatePlayer)
-	router.DELETE("/api/players/:id", DeletePlayer)
-
-	// Игры
-	router.POST("/api/games", CreateGame)
 	router.GET("/api/games", GetGames)
 	router.GET("/api/games/:id", GetGameByID)
-	router.PUT("/api/games/:id", UpdateGame)
-	router.DELETE("/api/games/:id", DeleteGame)
-	router.POST("/api/games/:id/move", MakeMove)
-	router.POST("/api/games/:id/auto-move", AutoMove)
-
-	// Ходы
-	router.POST("/api/moves", CreateMove)
 	router.GET("/api/moves", GetMoves)
 	router.GET("/api/moves/:id", GetMoveByID)
-	router.PUT("/api/moves/:id", UpdateMove)
-	router.DELETE("/api/moves/:id", DeleteMove)
 
 	// Веб-страницы наблюдателя
 	router.GET("/", IndexPage)
 	router.GET("/game", GamePage)
 
+	// Swagger
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// ============ Защищённые роуты (требуется JWT) ============
+
+	protected := router.Group("/api")
+	protected.Use(AuthRequired())
+	{
+		// Игроки
+		protected.POST("/players", CreatePlayer)
+		protected.PUT("/players/:id", UpdatePlayer)
+		protected.DELETE("/players/:id", DeletePlayer)
+
+		// Игры
+		protected.POST("/games", CreateGame)
+		protected.PUT("/games/:id", UpdateGame)
+		protected.DELETE("/games/:id", DeleteGame)
+		protected.POST("/games/:id/move", MakeMove)
+		protected.POST("/games/:id/auto-move", AutoMove)
+
+		// Ходы
+		protected.POST("/moves", CreateMove)
+		protected.PUT("/moves/:id", UpdateMove)
+		protected.DELETE("/moves/:id", DeleteMove)
+	}
 
 	srv := &http.Server{
 		Addr:    ":8080",

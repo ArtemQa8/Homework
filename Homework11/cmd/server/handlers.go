@@ -61,7 +61,9 @@ func Login(c *gin.Context) {
 // @Param        player  body      dto.PlayerResponse  true  "Данные игрока"
 // @Success      201     {object}  dto.PlayerResponse
 // @Failure      400     {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      500     {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/players [post]
 func CreatePlayer(c *gin.Context) {
 	var player model.Player
@@ -124,8 +126,10 @@ func GetPlayerByID(c *gin.Context) {
 // @Param        player  body      dto.PlayerResponse  true  "Новые данные игрока"
 // @Success      200     {object}  dto.PlayerResponse
 // @Failure      400     {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      404     {object}  map[string]string
 // @Failure      500     {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/players/{id} [put]
 func UpdatePlayer(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -157,8 +161,10 @@ func UpdatePlayer(c *gin.Context) {
 // @Param        id   path  int  true  "ID игрока"
 // @Success      204  "No Content"
 // @Failure      400  {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/players/{id} [delete]
 func DeletePlayer(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -184,7 +190,9 @@ func DeletePlayer(c *gin.Context) {
 // @Param        game  body      dto.CreateGameRequest  true  "Данные игры"
 // @Success      201   {object}  dto.GameResponse
 // @Failure      400   {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      500   {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/games [post]
 func CreateGame(c *gin.Context) {
 	var req dto.CreateGameRequest
@@ -276,8 +284,10 @@ func GetGameByID(c *gin.Context) {
 // @Param        game  body      dto.GameResponse  true  "Новые данные игры"
 // @Success      200   {object}  dto.GameResponse
 // @Failure      400   {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      404   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/games/{id} [put]
 func UpdateGame(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -305,8 +315,10 @@ func UpdateGame(c *gin.Context) {
 // @Param        id   path  int  true  "ID игры"
 // @Success      204  "No Content"
 // @Failure      400  {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/games/{id} [delete]
 func DeleteGame(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -331,8 +343,10 @@ func DeleteGame(c *gin.Context) {
 // @Param        move  body      dto.MakeMoveRequest  true  "Координаты хода"
 // @Success      200   {object}  dto.GameResponse
 // @Failure      400   {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      404   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/games/{id}/move [post]
 func MakeMove(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -393,8 +407,10 @@ func MakeMove(c *gin.Context) {
 // @Param        id   path      int  true  "ID игры"
 // @Success      200  {object}  dto.AutoMoveResponse
 // @Failure      400  {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/games/{id}/auto-move [post]
 func AutoMove(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -478,7 +494,9 @@ func AutoMove(c *gin.Context) {
 // @Param        move  body      dto.MoveResponse  true  "Данные хода"
 // @Success      201   {object}  dto.MoveResponse
 // @Failure      400   {object}  map[string]string
+// @Failure		 401 	 {object}  map[string]string
 // @Failure      500   {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/moves [post]
 func CreateMove(c *gin.Context) {
 	var move model.Move
@@ -541,8 +559,10 @@ func GetMoveByID(c *gin.Context) {
 // @Param        move  body      dto.MoveResponse  true  "Новые данные хода"
 // @Success      200   {object}  dto.MoveResponse
 // @Failure      400   {object}  map[string]string
+// @Failure		 401   {object}  map[string]string
 // @Failure      404   {object}  map[string]string
 // @Failure      500   {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/moves/{id} [put]
 func UpdateMove(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -575,8 +595,10 @@ func UpdateMove(c *gin.Context) {
 // @Param        id   path  int  true  "ID хода"
 // @Success      204  "No Content"
 // @Failure      400  {object}  map[string]string
+// @Failure		 401  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
+// @Security     BearerAuth
 // @Router       /api/moves/{id} [delete]
 func DeleteMove(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))

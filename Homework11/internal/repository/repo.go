@@ -26,9 +26,9 @@ type Storage struct {
 
 func NewStorage() *Storage {
 	return &Storage{
-		fileGames:   "games.json",
-		filePlayers: "players.json",
-		fileMoves:   "moves.json",
+		fileGames:   "data/games.json",
+		filePlayers: "data/players.json",
+		fileMoves:   "data/moves.json",
 
 		nextGameID:   1,
 		nextPlayerID: 1,
