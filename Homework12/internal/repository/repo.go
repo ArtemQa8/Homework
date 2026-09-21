@@ -19,16 +19,18 @@ type Storage struct {
 	nextPlayerID int
 	nextMoveID   int
 
-	fileGames   string
-	filePlayers string
-	fileMoves   string
+	fileGames    string
+	filePlayers  string
+	fileMoves    string
+	fileCounters string
 }
 
 func NewStorage() *Storage {
 	return &Storage{
-		fileGames:   "data/games.json",
-		filePlayers: "data/players.json",
-		fileMoves:   "data/moves.json",
+		fileGames:    "data/games.json",
+		filePlayers:  "data/players.json",
+		fileMoves:    "data/moves.json",
+		fileCounters: "data/counters.json",
 
 		nextGameID:   1,
 		nextPlayerID: 1,
@@ -41,6 +43,12 @@ func (s *Storage) LoadFromFiles() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Счётчики ID: пробуем из файла. Если файла нет — начнём с 1,
+	// дальше всё равно скорректируем по максимуму в данных.
+	if _, err := s.loadCounters(); err != nil {
+		return fmt.Errorf("ошибка загрузки счётчиков: %w", err)
+	}
+
 	// Игроки
 	data, err := os.ReadFile(s.filePlayers)
 	if err == nil {
@@ -48,12 +56,13 @@ func (s *Storage) LoadFromFiles() error {
 			return fmt.Errorf("ошибка загрузки игроков: %w", err)
 		}
 
+		// Всегда поднимаем счётчик до максимума+1 — независимо от того,
+		// был файл счётчиков или нет. Защищает от переиспользования ID.
 		for _, player := range s.Players {
 			if player.ID() >= s.nextPlayerID {
 				s.nextPlayerID = player.ID() + 1
 			}
 		}
-
 	} else if !os.IsNotExist(err) {
 		return err
 	}
@@ -90,7 +99,53 @@ func (s *Storage) LoadFromFiles() error {
 		return err
 	}
 
+	// Сохраняем актуальные счётчики после корректировки.
+	_ = s.saveCounters()
+
 	return nil
+}
+
+// loadCounters пытается прочитать счётчики ID из data/counters.json.
+// Возвращает true, если файл был и успешно прочитан.
+func (s *Storage) loadCounters() (bool, error) {
+	data, err := os.ReadFile(s.fileCounters)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	var payload struct {
+		NextPlayerID int `json:"nextPlayerID"`
+		NextGameID   int `json:"nextGameID"`
+		NextMoveID   int `json:"nextMoveID"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return false, err
+	}
+
+	s.nextPlayerID = payload.NextPlayerID
+	s.nextGameID = payload.NextGameID
+	s.nextMoveID = payload.NextMoveID
+	return true, nil
+}
+
+// saveCounters записывает текущие счётчики ID в data/counters.json.
+func (s *Storage) saveCounters() error {
+	data, err := json.MarshalIndent(struct {
+		NextPlayerID int `json:"nextPlayerID"`
+		NextGameID   int `json:"nextGameID"`
+		NextMoveID   int `json:"nextMoveID"`
+	}{
+		NextPlayerID: s.nextPlayerID,
+		NextGameID:   s.nextGameID,
+		NextMoveID:   s.nextMoveID,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.fileCounters, data, 0644)
 }
 
 // savePlayers записывает слайс Players в файл players.json.
@@ -134,6 +189,11 @@ func (s *Storage) SaveAll() error {
 	if err := s.saveMoves(); err != nil {
 		return err
 	}
+
+	if err := s.saveCounters(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -172,6 +232,7 @@ func (s *Storage) addPlayer(player model.Player) model.Player {
 	s.nextPlayerID++
 	s.Players = append(s.Players, player)
 	_ = s.savePlayers()
+	_ = s.saveCounters()
 	return player
 }
 
@@ -281,6 +342,7 @@ func (s *Storage) CreateGame(game model.Game) (model.Game, error) {
 
 	s.Games = append(s.Games, game)
 	_ = s.saveGames()
+	_ = s.saveCounters()
 	return game, nil
 }
 
@@ -377,6 +439,7 @@ func (s *Storage) CreateMove(move model.Move) (model.Move, error) {
 
 	s.Moves = append(s.Moves, move)
 	_ = s.saveMoves()
+	_ = s.saveCounters()
 	return move, nil
 }
 
