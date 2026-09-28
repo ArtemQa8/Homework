@@ -99,6 +99,12 @@ func (s *Storage) LoadFromFiles() error {
 		return err
 	}
 
+	// Чистим ходы, чьи игры были удалены.
+	if removed := s.cleanOrphanMoves(); removed > 0 {
+		fmt.Printf("Очищено %d осиротевших ходов (игры удалены)\n", removed)
+		_ = s.saveMoves()
+	}
+
 	// Сохраняем актуальные счётчики после корректировки.
 	_ = s.saveCounters()
 
@@ -129,6 +135,27 @@ func (s *Storage) loadCounters() (bool, error) {
 	s.nextGameID = payload.NextGameID
 	s.nextMoveID = payload.NextMoveID
 	return true, nil
+}
+
+// cleanOrphanMoves удаляет ходы, чьи игры больше не существуют.
+// Возвращает количество удалённых.
+func (s *Storage) cleanOrphanMoves() int {
+	gameIDs := make(map[int]bool, len(s.Games))
+	for _, g := range s.Games {
+		gameIDs[g.ID()] = true
+	}
+
+	cleaned := make([]model.Move, 0, len(s.Moves))
+	removed := 0
+	for _, m := range s.Moves {
+		if gameIDs[m.GameID()] {
+			cleaned = append(cleaned, m)
+		} else {
+			removed++
+		}
+	}
+	s.Moves = cleaned
+	return removed
 }
 
 // saveCounters записывает текущие счётчики ID в data/counters.json.
@@ -411,15 +438,33 @@ func (s *Storage) DeleteGame(id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	found := false
 	for i := range s.Games {
 		if s.Games[i].ID() == id {
 			copy(s.Games[i:], s.Games[i+1:])
 			s.Games[len(s.Games)-1] = model.Game{}
 			s.Games = s.Games[:len(s.Games)-1]
-			return s.saveGames()
+			found = true
+			break
 		}
 	}
-	return fmt.Errorf("Игра с ID %d не найдена", id)
+	if !found {
+		return fmt.Errorf("Игра с ID %d не найдена", id)
+	}
+
+	// Удаляем все ходы, привязанные к этой игре.
+	cleaned := make([]model.Move, 0, len(s.Moves))
+	for _, m := range s.Moves {
+		if m.GameID() != id {
+			cleaned = append(cleaned, m)
+		}
+	}
+	s.Moves = cleaned
+
+	if err := s.saveGames(); err != nil {
+		return err
+	}
+	return s.saveMoves()
 }
 
 // =============MOVES=============

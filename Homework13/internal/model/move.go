@@ -28,18 +28,23 @@ func (m *Move) SetGameID(id int)  { m.gameID = id }
 
 // omitempty - Если наше поле будет "нулевым", то его не будет в джисоне
 func (m Move) MarshalJSON() ([]byte, error) {
+	var promo *PieceType
+	if m.Promotion != Pawn {
+		p := m.Promotion
+		promo = &p
+	}
 	return json.Marshal(struct {
-		GameID     int       `json:"играID"`
-		ID         int       `json:"id"`
-		FromRow    int       `json:"отСтрока"`
-		FromCol    int       `json:"отСтолбец"`
-		ToRow      int       `json:"вСтрока"`
-		ToCol      int       `json:"вСтолбец"`
-		Captured   *Piece    `json:"съедена,omitempty"`
-		Promotion  PieceType `json:"превращение,omitempty"`
-		MovedPiece *Piece    `json:"ходившаяФигура,omitempty"`
-		Check      bool      `json:"шах,omitempty"`
-		Mate       bool      `json:"мат,omitempty"`
+		GameID     int        `json:"играID"`
+		ID         int        `json:"id"`
+		FromRow    int        `json:"отСтрока"`
+		FromCol    int        `json:"отСтолбец"`
+		ToRow      int        `json:"вСтрока"`
+		ToCol      int        `json:"вСтолбец"`
+		Captured   *Piece     `json:"съедена,omitempty"`
+		Promotion  *PieceType `json:"превращение,omitempty"`
+		MovedPiece *Piece     `json:"ходившаяФигура,omitempty"`
+		Check      bool       `json:"шах,omitempty"`
+		Mate       bool       `json:"мат,omitempty"`
 	}{
 		GameID:     m.gameID,
 		ID:         m.id,
@@ -48,7 +53,7 @@ func (m Move) MarshalJSON() ([]byte, error) {
 		ToRow:      m.ToRow,
 		ToCol:      m.ToCol,
 		Captured:   m.Captured,
-		Promotion:  m.Promotion,
+		Promotion:  promo,
 		MovedPiece: m.MovedPiece,
 		Check:      m.Check,
 		Mate:       m.Mate,

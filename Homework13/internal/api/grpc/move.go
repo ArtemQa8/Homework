@@ -9,16 +9,16 @@ import (
 
 	"mod.go/internal/model"
 	pb "mod.go/internal/proto"
-	"mod.go/internal/repository"
+	"mod.go/internal/service"
 )
 
 type MoveServer struct {
 	pb.UnimplementedMoveServiceServer
-	storage *repository.Storage
+	moveService *service.MoveService
 }
 
-func NewMoveServer(storage *repository.Storage) *MoveServer {
-	return &MoveServer{storage: storage}
+func NewMoveServer(moveService *service.MoveService) *MoveServer {
+	return &MoveServer{moveService: moveService}
 }
 
 func (s *MoveServer) CreateMove(ctx context.Context, req *pb.CreateMoveRequest) (*pb.Move, error) {
@@ -35,7 +35,7 @@ func (s *MoveServer) CreateMove(ctx context.Context, req *pb.CreateMoveRequest) 
 
 	move.SetGameID(int(req.GameId))
 
-	created, err := s.storage.CreateMove(move)
+	created, err := s.moveService.Create(move)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -43,15 +43,15 @@ func (s *MoveServer) CreateMove(ctx context.Context, req *pb.CreateMoveRequest) 
 }
 
 func (s *MoveServer) GetMove(ctx context.Context, req *pb.GetMoveRequest) (*pb.Move, error) {
-	move, found := s.storage.GetMoveByID(int(req.Id))
-	if !found {
-		return nil, status.Errorf(codes.NotFound, "ход с ID %d не найден", req.Id)
+	move, err := s.moveService.Get(int(req.Id))
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	return toProtoMove(move), nil
 }
 
 func (s *MoveServer) ListMoves(ctx context.Context, _ *emptypb.Empty) (*pb.ListMovesResponse, error) {
-	moves := s.storage.GetAllMoves()
+	moves := s.moveService.List()
 	result := make([]*pb.Move, len(moves))
 	for i, m := range moves {
 		result[i] = toProtoMove(m)
@@ -60,10 +60,6 @@ func (s *MoveServer) ListMoves(ctx context.Context, _ *emptypb.Empty) (*pb.ListM
 }
 
 func (s *MoveServer) UpdateMove(ctx context.Context, req *pb.UpdateMoveRequest) (*pb.Move, error) {
-	_, found := s.storage.GetMoveByID(int(req.Id))
-	if !found {
-		return nil, status.Errorf(codes.NotFound, "ход с ID %d не найден", req.Id)
-	}
 
 	move := model.Move{
 		FromRow: int(req.FromRow),
@@ -74,16 +70,15 @@ func (s *MoveServer) UpdateMove(ctx context.Context, req *pb.UpdateMoveRequest) 
 	move.SetGameID(int(req.GameId))
 	move.SetID(int(req.Id))
 
-	if err := s.storage.UpdateMove(int(req.Id), move); err != nil {
+	updated, err := s.moveService.Update(int(req.Id), move)
+	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-
-	updated, _ := s.storage.GetMoveByID(int(req.Id))
 	return toProtoMove(updated), nil
 }
 
 func (s *MoveServer) DeleteMove(ctx context.Context, req *pb.DeleteMoveRequest) (*emptypb.Empty, error) {
-	if err := s.storage.DeleteMove(int(req.Id)); err != nil {
+	if err := s.moveService.Delete(int(req.Id)); err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	return &emptypb.Empty{}, nil

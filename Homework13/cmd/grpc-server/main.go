@@ -13,6 +13,7 @@ import (
 	grpchandler "mod.go/internal/api/grpc"
 	pb "mod.go/internal/proto"
 	"mod.go/internal/repository"
+	"mod.go/internal/service"
 )
 
 func main() {
@@ -28,9 +29,13 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	pb.RegisterPlayerServiceServer(grpcServer, grpchandler.NewPlayerServer(storage))
-	pb.RegisterGameServiceServer(grpcServer, grpchandler.NewGameServer(storage))
-	pb.RegisterMoveServiceServer(grpcServer, grpchandler.NewMoveServer(storage))
+	playerService := service.NewPlayerService(storage)
+	gameService := service.NewGameService(storage)
+	moveService := service.NewMoveService(storage)
+
+	pb.RegisterPlayerServiceServer(grpcServer, grpchandler.NewPlayerServer(playerService))
+	pb.RegisterGameServiceServer(grpcServer, grpchandler.NewGameServer(gameService))
+	pb.RegisterMoveServiceServer(grpcServer, grpchandler.NewMoveServer(moveService))
 
 	go func() {
 		fmt.Println("gRPC-сервер запущен на :50051")

@@ -1,4 +1,4 @@
-package main
+package rest
 
 import (
 	"net/http"
@@ -11,7 +11,7 @@ import (
 // AuthRequired — middleware, который проверяет JWT в заголовке Authorization.
 // Если токен валиден — пропускает запрос дальше.
 // Если нет — возвращает 401 и прерывает обработку.
-func AuthRequired() gin.HandlerFunc {
+func (h *Handlers) AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if header == "" {
@@ -27,7 +27,7 @@ func AuthRequired() gin.HandlerFunc {
 		}
 
 		token := parts[1]
-		valid, err := auth.ValidateToken(token, cfg.JWTSecret)
+		valid, err := auth.ValidateToken(token, h.cfg.JWTSecret)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"Ошибка": "невалидный токен: " + err.Error()})
 			return

@@ -188,7 +188,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mod_go_internal_dto.GameResponse"
+                            "$ref": "#/definitions/mod_go_internal_dto.UpdateGameRequest"
                         }
                     }
                 ],
@@ -559,7 +559,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mod_go_internal_dto.MoveResponse"
+                            "$ref": "#/definitions/mod_go_internal_dto.CreateMoveRequest"
                         }
                     }
                 ],
@@ -677,7 +677,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mod_go_internal_dto.MoveResponse"
+                            "$ref": "#/definitions/mod_go_internal_dto.UpdateMoveRequest"
                         }
                     }
                 ],
@@ -844,7 +844,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mod_go_internal_dto.PlayerResponse"
+                            "$ref": "#/definitions/mod_go_internal_dto.CreatePlayerRequest"
                         }
                     }
                 ],
@@ -962,7 +962,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mod_go_internal_dto.PlayerResponse"
+                            "$ref": "#/definitions/mod_go_internal_dto.UpdatePlayerRequest"
                         }
                     }
                 ],
@@ -1117,16 +1117,90 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "игрок1": {
-                    "$ref": "#/definitions/mod_go_internal_dto.PlayerResponse"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/mod_go_internal_dto.GamePlayerName"
+                        }
+                    ],
+                    "x-order": "0"
                 },
                 "игрок2": {
-                    "$ref": "#/definitions/mod_go_internal_dto.PlayerResponse"
-                },
-                "столбцы": {
-                    "type": "integer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/mod_go_internal_dto.GamePlayerName"
+                        }
+                    ],
+                    "x-order": "1"
                 },
                 "строки": {
+                    "type": "integer",
+                    "x-order": "2"
+                },
+                "столбцы": {
+                    "type": "integer",
+                    "x-order": "3"
+                }
+            }
+        },
+        "mod_go_internal_dto.CreateMoveRequest": {
+            "type": "object",
+            "properties": {
+                "играID": {
+                    "type": "integer",
+                    "x-order": "0"
+                },
+                "отСтрока": {
+                    "type": "integer",
+                    "x-order": "1"
+                },
+                "отСтолбец": {
+                    "type": "integer",
+                    "x-order": "2"
+                },
+                "вСтрока": {
+                    "type": "integer",
+                    "x-order": "3"
+                },
+                "вСтолбец": {
+                    "type": "integer",
+                    "x-order": "4"
+                },
+                "превращение": {
+                    "type": "string",
+                    "x-order": "5"
+                }
+            }
+        },
+        "mod_go_internal_dto.CreatePlayerRequest": {
+            "type": "object",
+            "properties": {
+                "имя": {
+                    "type": "string"
+                }
+            }
+        },
+        "mod_go_internal_dto.GamePlayerName": {
+            "type": "object",
+            "properties": {
+                "id": {
                     "type": "integer"
+                },
+                "имя": {
+                    "type": "string"
+                }
+            }
+        },
+        "mod_go_internal_dto.GamePlayerResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "имя": {
+                    "type": "string"
+                },
+                "цвет": {
+                    "type": "string"
                 }
             }
         },
@@ -1140,10 +1214,10 @@ const docTemplate = `{
                     "$ref": "#/definitions/mod_go_internal_dto.BoardResponse"
                 },
                 "игрок1": {
-                    "$ref": "#/definitions/mod_go_internal_dto.PlayerResponse"
+                    "$ref": "#/definitions/mod_go_internal_dto.GamePlayerResponse"
                 },
                 "игрок2": {
-                    "$ref": "#/definitions/mod_go_internal_dto.PlayerResponse"
+                    "$ref": "#/definitions/mod_go_internal_dto.GamePlayerResponse"
                 },
                 "текущий": {
                     "type": "string"
@@ -1178,21 +1252,25 @@ const docTemplate = `{
         "mod_go_internal_dto.MakeMoveRequest": {
             "type": "object",
             "properties": {
-                "вСтолбец": {
-                    "type": "integer"
-                },
-                "вСтрока": {
-                    "type": "integer"
+                "отСтрока": {
+                    "type": "integer",
+                    "x-order": "0"
                 },
                 "отСтолбец": {
-                    "type": "integer"
+                    "type": "integer",
+                    "x-order": "1"
                 },
-                "отСтрока": {
-                    "type": "integer"
+                "вСтрока": {
+                    "type": "integer",
+                    "x-order": "2"
+                },
+                "вСтолбец": {
+                    "type": "integer",
+                    "x-order": "3"
                 },
                 "превращение": {
                     "type": "string",
-                    "example": "ферзь"
+                    "x-order": "4"
                 }
             }
         },
@@ -1253,8 +1331,59 @@ const docTemplate = `{
                 },
                 "имя": {
                     "type": "string"
+                }
+            }
+        },
+        "mod_go_internal_dto.UpdateGameRequest": {
+            "type": "object",
+            "properties": {
+                "игрок1": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/mod_go_internal_dto.GamePlayerName"
+                        }
+                    ],
+                    "x-order": "0"
                 },
-                "цвет": {
+                "игрок2": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/mod_go_internal_dto.GamePlayerName"
+                        }
+                    ],
+                    "x-order": "1"
+                }
+            }
+        },
+        "mod_go_internal_dto.UpdateMoveRequest": {
+            "type": "object",
+            "properties": {
+                "играID": {
+                    "type": "integer",
+                    "x-order": "0"
+                },
+                "отСтрока": {
+                    "type": "integer",
+                    "x-order": "1"
+                },
+                "отСтолбец": {
+                    "type": "integer",
+                    "x-order": "2"
+                },
+                "вСтрока": {
+                    "type": "integer",
+                    "x-order": "3"
+                },
+                "вСтолбец": {
+                    "type": "integer",
+                    "x-order": "4"
+                }
+            }
+        },
+        "mod_go_internal_dto.UpdatePlayerRequest": {
+            "type": "object",
+            "properties": {
+                "имя": {
                     "type": "string"
                 }
             }

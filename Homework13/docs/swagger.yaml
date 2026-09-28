@@ -27,13 +27,61 @@ definitions:
   mod_go_internal_dto.CreateGameRequest:
     properties:
       игрок1:
-        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+        allOf:
+        - $ref: '#/definitions/mod_go_internal_dto.GamePlayerName'
+        x-order: "0"
       игрок2:
-        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+        allOf:
+        - $ref: '#/definitions/mod_go_internal_dto.GamePlayerName'
+        x-order: "1"
       столбцы:
         type: integer
+        x-order: "3"
       строки:
         type: integer
+        x-order: "2"
+    type: object
+  mod_go_internal_dto.CreateMoveRequest:
+    properties:
+      вСтолбец:
+        type: integer
+        x-order: "4"
+      вСтрока:
+        type: integer
+        x-order: "3"
+      играID:
+        type: integer
+        x-order: "0"
+      отСтолбец:
+        type: integer
+        x-order: "2"
+      отСтрока:
+        type: integer
+        x-order: "1"
+      превращение:
+        type: string
+        x-order: "5"
+    type: object
+  mod_go_internal_dto.CreatePlayerRequest:
+    properties:
+      имя:
+        type: string
+    type: object
+  mod_go_internal_dto.GamePlayerName:
+    properties:
+      id:
+        type: integer
+      имя:
+        type: string
+    type: object
+  mod_go_internal_dto.GamePlayerResponse:
+    properties:
+      id:
+        type: integer
+      имя:
+        type: string
+      цвет:
+        type: string
     type: object
   mod_go_internal_dto.GameResponse:
     properties:
@@ -42,9 +90,9 @@ definitions:
       доска:
         $ref: '#/definitions/mod_go_internal_dto.BoardResponse'
       игрок1:
-        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+        $ref: '#/definitions/mod_go_internal_dto.GamePlayerResponse'
       игрок2:
-        $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+        $ref: '#/definitions/mod_go_internal_dto.GamePlayerResponse'
       текущий:
         type: string
       ходы:
@@ -68,15 +116,19 @@ definitions:
     properties:
       вСтолбец:
         type: integer
+        x-order: "3"
       вСтрока:
         type: integer
+        x-order: "2"
       отСтолбец:
         type: integer
+        x-order: "1"
       отСтрока:
         type: integer
+        x-order: "0"
       превращение:
-        example: ферзь
         type: string
+        x-order: "4"
     type: object
   mod_go_internal_dto.MoveResponse:
     properties:
@@ -116,7 +168,39 @@ definitions:
         type: integer
       имя:
         type: string
-      цвет:
+    type: object
+  mod_go_internal_dto.UpdateGameRequest:
+    properties:
+      игрок1:
+        allOf:
+        - $ref: '#/definitions/mod_go_internal_dto.GamePlayerName'
+        x-order: "0"
+      игрок2:
+        allOf:
+        - $ref: '#/definitions/mod_go_internal_dto.GamePlayerName'
+        x-order: "1"
+    type: object
+  mod_go_internal_dto.UpdateMoveRequest:
+    properties:
+      вСтолбец:
+        type: integer
+        x-order: "4"
+      вСтрока:
+        type: integer
+        x-order: "3"
+      играID:
+        type: integer
+        x-order: "0"
+      отСтолбец:
+        type: integer
+        x-order: "2"
+      отСтрока:
+        type: integer
+        x-order: "1"
+    type: object
+  mod_go_internal_dto.UpdatePlayerRequest:
+    properties:
+      имя:
         type: string
     type: object
 host: localhost:8080
@@ -274,7 +358,7 @@ paths:
         name: game
         required: true
         schema:
-          $ref: '#/definitions/mod_go_internal_dto.GameResponse'
+          $ref: '#/definitions/mod_go_internal_dto.UpdateGameRequest'
       produces:
       - application/json
       responses:
@@ -474,7 +558,7 @@ paths:
         name: move
         required: true
         schema:
-          $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+          $ref: '#/definitions/mod_go_internal_dto.CreateMoveRequest'
       produces:
       - application/json
       responses:
@@ -591,7 +675,7 @@ paths:
         name: move
         required: true
         schema:
-          $ref: '#/definitions/mod_go_internal_dto.MoveResponse'
+          $ref: '#/definitions/mod_go_internal_dto.UpdateMoveRequest'
       produces:
       - application/json
       responses:
@@ -659,7 +743,7 @@ paths:
         name: player
         required: true
         schema:
-          $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+          $ref: '#/definitions/mod_go_internal_dto.CreatePlayerRequest'
       produces:
       - application/json
       responses:
@@ -776,7 +860,7 @@ paths:
         name: player
         required: true
         schema:
-          $ref: '#/definitions/mod_go_internal_dto.PlayerResponse'
+          $ref: '#/definitions/mod_go_internal_dto.UpdatePlayerRequest'
       produces:
       - application/json
       responses:
