@@ -8,6 +8,9 @@ type Board struct {
 	cells [][]*Piece
 }
 
+// NewBoard создаёт доску заданного размера с расстановкой фигур.
+// Ожидает rows >= 4 и cols >= 4 — для меньших размеров поведение не определено.
+// Валидацию размера выполняет сервисный слой (GameService.Create).
 func NewBoard(newRows, newCols int) *Board {
 	b := &Board{rows: newRows, cols: newCols}
 	b.cells = make([][]*Piece, newRows)
@@ -15,7 +18,7 @@ func NewBoard(newRows, newCols int) *Board {
 		b.cells[i] = make([]*Piece, newCols)
 	}
 
-	for col := 0; col < newCols; col++ {
+	for col := range newCols {
 		b.cells[1][col] = NewPiece(White, Pawn)
 		b.cells[newRows-2][col] = NewPiece(Black, Pawn)
 	}

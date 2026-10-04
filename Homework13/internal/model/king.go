@@ -12,6 +12,9 @@ func (k *KingRules) CanMove(move *Move, board *Board) bool {
 	rowDiff := abs(move.ToRow - move.FromRow)
 	colDiff := abs(move.ToCol - move.FromCol)
 
+	if rowDiff == 0 && colDiff == 0 {
+		return false
+	}
 	if rowDiff > 1 || colDiff > 1 {
 		return false
 	}

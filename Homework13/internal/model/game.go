@@ -64,6 +64,17 @@ func (g *Game) InCheck(color Color) bool {
 	return kingInCheck(g, color)
 }
 
+func (g *Game) SetBoard(board *Board) {
+	g.board = board
+}
+
+func (g *Game) SetLastMoveID(id int) {
+	if len(g.moves) == 0 {
+		return
+	}
+	g.moves[len(g.moves)-1].id = id
+}
+
 // ── Отображение ────────────────────────────────────────────
 
 func (g *Game) Render() string {
@@ -300,19 +311,20 @@ func (g *Game) MakeMove(move *Move) error {
 	if piece.Type() == King && abs(move.ToCol-move.FromCol) == 2 {
 		move.MovedPiece = piece
 		if g.tryCastling(move, piece) {
-			if kingInCheck(g, g.current) {
-				if g.Checkmate(g.current) {
-					move.Mate = true
-				} else {
-					move.Check = true
-				}
-			}
-			g.moves = append(g.moves, *move)
+			// сначала переключаем цвет
 			if g.current == White {
 				g.current = Black
 			} else {
 				g.current = White
 			}
+			// теперь проверяем шах у противника
+			if kingInCheck(g, g.current) {
+				move.Check = true
+				if g.Checkmate(g.current) {
+					move.Mate = true
+				}
+			}
+			g.moves = append(g.moves, *move)
 			return nil
 		}
 		return errors.New("невозможно выполнить рокировку")
@@ -425,10 +437,9 @@ func (g *Game) MakeMove(move *Move) error {
 	}
 
 	if kingInCheck(g, g.current) {
+		move.Check = true
 		if g.Checkmate(g.current) {
 			move.Mate = true
-		} else {
-			move.Check = true
 		}
 	}
 
@@ -445,6 +456,7 @@ func (g *Game) tryCastling(move *Move, king *Piece) bool {
 	fromCol := move.FromCol
 	toCol := move.ToCol
 
+	// Вычисляем, в какую сторону идёт король
 	direction := 1
 	if toCol < fromCol {
 		direction = -1
@@ -456,13 +468,20 @@ func (g *Game) tryCastling(move *Move, king *Piece) bool {
 	rookCol := 0
 	rookColAfter := 0
 	if direction == 1 {
-		rookCol = g.board.Cols() - 1
-		rookColAfter = toCol - 1
+		rookCol = g.board.Cols() - 1 // ладья в последнем столбце (h1/h8)
+		rookColAfter = toCol - 1     // встанет левее короля (f1/f8)
 	} else {
-		rookCol = 0
-		rookColAfter = toCol + 1
+		rookCol = 0              // ладья в первом столбце (a1/a8)
+		rookColAfter = toCol + 1 // встанет правее короля (d1/d8)
 	}
 
+	// защита от выхода за границы (маленькие доски)
+	if toCol < 0 || toCol >= g.board.Cols() ||
+		rookColAfter < 0 || rookColAfter >= g.board.Cols() {
+		return false
+	}
+
+	// проверяем, двигались ли король и ладья
 	kingMoved := false
 	rookMoved := false
 	switch {
@@ -483,6 +502,7 @@ func (g *Game) tryCastling(move *Move, king *Piece) bool {
 		return false
 	}
 
+	// на пути не должно быть фигур
 	step := 1
 	if direction == -1 {
 		step = -1
@@ -493,35 +513,46 @@ func (g *Game) tryCastling(move *Move, king *Piece) bool {
 		}
 	}
 
+	// стартовое поле не под шахом
 	if kingInCheck(g, color) {
 		return false
 	}
 
+	// промежуточное поле не под боем
 	intermediateCol := fromCol + step
 	tempMove := &Move{FromRow: row, FromCol: fromCol, ToRow: row, ToCol: intermediateCol}
 	if !g.LegalMove(tempMove, color) {
 		return false
 	}
 
+	// Конечное поле не под боем (иначе король окажется под шахом после рокировки)
+	finalMove := &Move{FromRow: row, FromCol: fromCol, ToRow: row, ToCol: toCol}
+	if !g.LegalMove(finalMove, color) {
+		return false
+	}
+
+	// проверка наличия ладьи на клетке
 	rook := g.board.PieceAt(row, rookCol)
 	if rook == nil || rook.Type() != Rook || rook.Color() != color {
 		return false
 	}
 
-	g.board.SetPiece(row, toCol, king)
+	// выполнение рокировки
 	g.board.SetPiece(row, fromCol, nil)
-	g.board.SetPiece(row, rookColAfter, rook)
 	g.board.SetPiece(row, rookCol, nil)
+	g.board.SetPiece(row, toCol, king)
+	g.board.SetPiece(row, rookColAfter, rook)
 
-	switch {
-	case color == White:
+	// установка флагов
+	switch color {
+	case White:
 		g.whiteKingMoved = true
 		if direction == 1 {
 			g.whiteRookHMoved = true
 		} else {
 			g.whiteRookAMoved = true
 		}
-	case color == Black:
+	case Black:
 		g.blackKingMoved = true
 		if direction == 1 {
 			g.blackRookHMoved = true
@@ -685,15 +716,4 @@ func (g *Game) UnmarshalJSON(data []byte) error {
 	g.blackRookHMoved = payload.BlackRookHMoved
 
 	return nil
-}
-
-func (g *Game) SetBoard(board *Board) {
-	g.board = board
-}
-
-func (g *Game) SetLastMoveID(id int) {
-	if len(g.moves) == 0 {
-		return
-	}
-	g.moves[len(g.moves)-1].id = id
 }

@@ -21,8 +21,15 @@ func (s *GameService) Create(p1, p2 model.Player, rows, cols int) (model.Game, e
 		return model.Game{}, errors.New("имена обоих игроков обязательны")
 	}
 
-	if rows <= 0 || cols <= 0 {
-		rows, cols = 8, 8
+	if rows <= 0 {
+		rows = 8
+	}
+	if cols <= 0 {
+		cols = 8
+	}
+
+	if rows < 4 || cols < 4 {
+		return model.Game{}, fmt.Errorf("минимальный размер доски 4x4, получено %dx%d", rows, cols)
 	}
 
 	game := model.Game{}

@@ -195,10 +195,16 @@ func (c Color) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON превращает строку обратно в Color.
 func (c *Color) UnmarshalJSON(data []byte) error {
-	switch string(data) {
-	case `"Белые"`, `"белые"`:
+	s := string(data)
+
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		s = s[1 : len(s)-1]
+	}
+
+	switch strings.ToLower(s) {
+	case "белые":
 		*c = White
-	case `"Чёрные"`, `"чёрные"`, `"Черные"`, `"черные"`:
+	case "черные", "чёрные":
 		*c = Black
 	default:
 		return fmt.Errorf("неизвестный цвет: %s", string(data))

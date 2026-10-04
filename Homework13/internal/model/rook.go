@@ -9,6 +9,11 @@ func NewRookRules(color Color) *RookRules {
 }
 
 func (r *RookRules) CanMove(move *Move, board *Board) bool {
+
+	if move.FromRow == move.ToRow && move.FromCol == move.ToCol {
+		return false
+	}
+
 	if move.FromRow != move.ToRow && move.FromCol != move.ToCol {
 		return false
 	}

@@ -12,6 +12,9 @@ func (q *QueenRules) CanMove(move *Move, board *Board) bool {
 	rowDiff := abs(move.ToRow - move.FromRow)
 	colDiff := abs(move.ToCol - move.FromCol)
 
+	if move.FromRow == move.ToRow && move.FromCol == move.ToCol {
+		return false
+	}
 	if !(move.FromRow == move.ToRow || move.FromCol == move.ToCol || rowDiff == colDiff) {
 		return false
 	}

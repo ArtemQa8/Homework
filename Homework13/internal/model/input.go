@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -16,9 +17,6 @@ func ParseCell(notation string, board *Board) (row, col int, err error) {
 	digitPart := ""
 	for i, r := range notation {
 		if unicode.IsLetter(r) {
-			if digitPart != "" {
-				return 0, 0, fmt.Errorf("перемешаны буквы и цифры в %q", notation)
-			}
 			letterPart += string(r)
 		} else if unicode.IsDigit(r) {
 			digitPart = notation[i:]
@@ -36,8 +34,7 @@ func ParseCell(notation string, board *Board) (row, col int, err error) {
 		return 0, 0, fmt.Errorf("столбец %q за пределами доски", letterPart)
 	}
 
-	var rowNumber int
-	_, err = fmt.Sscanf(digitPart, "%d", &rowNumber)
+	rowNumber, err := strconv.Atoi(digitPart)
 	if err != nil || rowNumber < 1 || rowNumber > board.Rows() {
 		return 0, 0, fmt.Errorf("неверный номер строки: %q", digitPart)
 	}
