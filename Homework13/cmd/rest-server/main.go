@@ -37,7 +37,7 @@ func main() {
 		log.Fatalf("Ошибка загрузки конфига: %v", err)
 	}
 
-	storage := repository.NewStorage()
+	storage := repository.NewStorage("data")
 	if err := storage.LoadFromFiles(); err != nil {
 		log.Fatalf("Ошибка загрузки данных: %v", err)
 	}

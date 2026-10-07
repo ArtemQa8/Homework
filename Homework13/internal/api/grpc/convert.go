@@ -146,3 +146,16 @@ func toProtoGame(g model.Game) *pb.Game {
 		Moves:        moves,
 	}
 }
+
+func moveFromProto(fromRow, fromCol, toRow, toCol int32, promotion pb.PieceType) model.Move {
+	move := model.Move{
+		FromRow: int(fromRow),
+		FromCol: int(fromCol),
+		ToRow:   int(toRow),
+		ToCol:   int(toCol),
+	}
+	if promotion != pb.PieceType_PIECE_TYPE_UNSPECIFIED {
+		move.Promotion = fromProtoPieceType(promotion)
+	}
+	return move
+}

@@ -2,9 +2,7 @@ package model
 
 import (
 	"fmt"
-	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 func abs(x int) int {
@@ -23,18 +21,7 @@ func sign(x int) int {
 	return 0
 }
 
-func center(name string, boardWidth int) string {
-	length := utf8.RuneCountInString(name)
-	totalSpaces := boardWidth - length
-	if totalSpaces <= 0 {
-		return name
-	}
-	left := totalSpaces / 2
-	right := totalSpaces - left
-	return strings.Repeat(" ", left) + name + strings.Repeat(" ", right)
-}
-
-func columnName(index int) string {
+func ColumnName(index int) string {
 	index++
 	var result []byte
 	for index > 0 {
@@ -85,7 +72,7 @@ func FormatMove(move Move) string {
 }
 
 func CellToString(row, col int) string {
-	return columnName(col) + fmt.Sprintf("%d", row+1)
+	return ColumnName(col) + fmt.Sprintf("%d", row+1)
 }
 
 // GameState хранит информацию о ходе автоматической партии
@@ -94,35 +81,6 @@ type GameState struct {
 	LastMove string
 	MoveTime time.Duration
 	Finished bool
-}
-
-// VisibleLength считает длину строки без учёта ANSI-кодов.
-func VisibleLength(s string) int {
-	length := 0
-	inEscape := false
-	for _, r := range s {
-		if inEscape {
-			if r == 'm' {
-				inEscape = false
-			}
-			continue
-		}
-		if r == '\033' {
-			inEscape = true
-			continue
-		}
-		length++
-	}
-	return length
-}
-
-// PadWithSpaces дополняет строку пробелами до нужной видимой ширины.
-func PadWithSpaces(s string, width int) string {
-	current := VisibleLength(s)
-	if current >= width {
-		return s
-	}
-	return s + strings.Repeat(" ", width-current)
 }
 
 // GenitiveColor возвращает название цвета в родительном падеже.

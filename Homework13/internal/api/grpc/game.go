@@ -67,18 +67,8 @@ func (s *GameServer) DeleteGame(ctx context.Context, req *pb.DeleteGameRequest) 
 }
 
 func (s *GameServer) MakeMove(ctx context.Context, req *pb.MakeMoveRequest) (*pb.Game, error) {
-	move := &model.Move{
-		FromRow: int(req.FromRow),
-		FromCol: int(req.FromCol),
-		ToRow:   int(req.ToRow),
-		ToCol:   int(req.ToCol),
-	}
-
-	if req.Promotion != pb.PieceType_PIECE_TYPE_UNSPECIFIED {
-		move.Promotion = fromProtoPieceType(req.Promotion)
-	}
-
-	game, err := s.gameService.MakeMove(int(req.GameId), move)
+	move := moveFromProto(req.FromRow, req.FromCol, req.ToRow, req.ToCol, req.Promotion)
+	game, err := s.gameService.MakeMove(int(req.GameId), &move)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

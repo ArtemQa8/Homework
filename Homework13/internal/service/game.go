@@ -32,21 +32,10 @@ func (s *GameService) Create(p1, p2 model.Player, rows, cols int) (model.Game, e
 		return model.Game{}, fmt.Errorf("минимальный размер доски 4x4, получено %dx%d", rows, cols)
 	}
 
-	game := model.Game{}
-	game.SetPlayer1(p1)
-	game.SetPlayer2(p2)
-	game.SetBoard(model.NewBoard(rows, cols))
-
-	created, err := s.storage.CreateGame(game)
+	game := model.NewGame(p1, p2, rows, cols)
+	created, err := s.storage.CreateGame(*game)
 	if err != nil {
 		return model.Game{}, err
-	}
-
-	created.SetPlayer1Color(model.White)
-	created.SetPlayer2Color(model.Black)
-
-	if err := s.storage.OverwriteGame(created.ID(), created); err != nil {
-		return model.Game{}, fmt.Errorf("не удалось сохранить игру: %w", err)
 	}
 
 	return created, nil
@@ -103,20 +92,8 @@ func (s *GameService) MakeMove(id int, move *model.Move) (model.Game, error) {
 	move.SetGameID(id)
 
 	// Сбрасываем Promotion, если ход не является превращением.
-	if piece := game.Board().PieceAt(move.FromRow, move.FromCol); piece != nil {
-		isPromotion := false
-		if piece.Type() == model.Pawn {
-			lastRow := 0
-			if piece.Color() == model.White {
-				lastRow = game.Board().Rows() - 1
-			}
-			if move.ToRow == lastRow {
-				isPromotion = true
-			}
-		}
-		if !isPromotion {
-			move.Promotion = model.Pawn
-		}
+	if !move.IsPromotion(game.Board()) {
+		move.Promotion = model.Pawn
 	}
 
 	if err := game.MakeMove(move); err != nil {
@@ -154,14 +131,8 @@ func (s *GameService) AutoMove(id int) (model.Game, error) {
 	}
 
 	// Автопревращение пешки в ферзя
-	if piece := game.Board().PieceAt(move.FromRow, move.FromCol); piece != nil && piece.Type() == model.Pawn {
-		lastRow := 0
-		if piece.Color() == model.White {
-			lastRow = game.Board().Rows() - 1
-		}
-		if move.ToRow == lastRow {
-			move.Promotion = model.Queen
-		}
+	if move.IsPromotion(game.Board()) {
+		move.Promotion = model.Queen
 	}
 
 	move.SetGameID(id)

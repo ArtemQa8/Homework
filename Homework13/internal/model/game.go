@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
-	"strings"
-	"unicode/utf8"
 )
 
 type Game struct {
@@ -27,13 +24,24 @@ type Game struct {
 	blackRookHMoved bool
 }
 
-func NewGame(name1, name2 string, rows, cols int) *Game {
+func NewGame(p1, p2 Player, rows, cols int) *Game {
 	return &Game{
-		player1:      *NewPlayer(name1),
-		player2:      *NewPlayer(name2),
+		player1:      p1,
+		player2:      p2,
 		player1Color: White,
 		player2Color: Black,
 		board:        NewBoard(rows, cols),
+		current:      White,
+	}
+}
+
+func NewGameWithBoard(p1, p2 Player, board *Board) *Game {
+	return &Game{
+		player1:      p1,
+		player2:      p2,
+		player1Color: White,
+		player2Color: Black,
+		board:        board,
 		current:      White,
 	}
 }
@@ -64,108 +72,11 @@ func (g *Game) InCheck(color Color) bool {
 	return kingInCheck(g, color)
 }
 
-func (g *Game) SetBoard(board *Board) {
-	g.board = board
-}
-
 func (g *Game) SetLastMoveID(id int) {
 	if len(g.moves) == 0 {
 		return
 	}
 	g.moves[len(g.moves)-1].id = id
-}
-
-// ── Отображение ────────────────────────────────────────────
-
-func (g *Game) Render() string {
-	var sb strings.Builder
-	maxWidth := int(math.Log10(float64(g.board.Rows()))) + 1
-	boardWidth := int(g.board.Cols())*3 + maxWidth + 1
-
-	sb.WriteString(center(g.player1.Name(), boardWidth))
-	sb.WriteByte('\n')
-
-	sb.WriteString(strings.Repeat(" ", maxWidth+1))
-	for c := 0; c < g.board.Cols(); c++ {
-		name := columnName(c)
-		length := len(name)
-		if length > 3 {
-			name = name[:3]
-			length = 3
-		}
-		left := (3 - length + 1) / 2
-		right := 3 - length - left
-		sb.WriteString(strings.Repeat(" ", left))
-		sb.WriteString(name)
-		sb.WriteString(strings.Repeat(" ", right))
-	}
-	sb.WriteByte('\n')
-
-	for r := 0; r < g.board.Rows(); r++ {
-		fmt.Fprintf(&sb, "%*d ", maxWidth, r+1)
-		for c := 0; c < g.board.Cols(); c++ {
-			sb.WriteString(g.board.RenderCell(r, c))
-		}
-		sb.WriteByte('\n')
-	}
-
-	sb.WriteString(center(g.player2.Name(), boardWidth))
-	sb.WriteByte('\n')
-
-	// ── История ходов ──────────────────────────────────────
-	sb.WriteByte('\n')
-	sb.WriteString("История ходов:\n")
-
-	start := len(g.moves) - 10
-	if start < 0 {
-		start = 0
-	}
-	if start%2 != 0 {
-		start++
-	}
-
-	moveStrings := make([]string, 0, len(g.moves)-start)
-	maxLength := 0
-	for i := start; i < len(g.moves); i++ {
-		str := FormatMove(g.moves[i])
-		moveStrings = append(moveStrings, str)
-		runeLen := utf8.RuneCountInString(str)
-		if runeLen > maxLength {
-			maxLength = runeLen
-		}
-	}
-
-	moveNumber := start/2 + 1
-	for i, str := range moveStrings {
-		missing := maxLength - utf8.RuneCountInString(str)
-		str = str + strings.Repeat(" ", missing)
-
-		if (start+i)%2 == 0 {
-			sb.WriteString(fmt.Sprintf("%2d. ", moveNumber))
-			moveNumber++
-			sb.WriteString(str)
-			sb.WriteString("  ")
-		} else {
-			sb.WriteString("    ")
-			sb.WriteString(str)
-			sb.WriteByte('\n')
-		}
-	}
-	if len(moveStrings) > 0 && len(moveStrings)%2 != 0 {
-		sb.WriteByte('\n')
-	}
-
-	return sb.String()
-}
-
-func (g *Game) BoardRow(row int) string {
-	maxWidth := int(math.Log10(float64(g.board.Rows()))) + 1
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "%*d ", maxWidth, row+1)
-	for c := 0; c < g.board.Cols(); c++ {
-		sb.WriteString(g.board.RenderCell(row, c))
-	}
-	return sb.String()
 }
 
 // ── Приватные проверки (шах, легальность, мат) ────────────
@@ -342,7 +253,7 @@ func (g *Game) MakeMove(move *Move) error {
 		enPassant = isEnPassant(move, piece, g)
 	}
 	if !moveAllowed && !enPassant {
-		return fmt.Errorf("%s так не ходит", pieceName(piece.Type()))
+		return fmt.Errorf("%s так не ходит", piece.Type().Name())
 	}
 
 	// Пешка идёт на последний ряд — обязателен выбор фигуры превращения.
@@ -583,42 +494,6 @@ func isEnPassant(move *Move, piece *Piece, game *Game) bool {
 		shift = -1
 	}
 	return move.ToRow == last.ToRow+shift && move.ToCol == last.ToCol
-}
-
-func pieceName(pieceType PieceType) string {
-	switch pieceType {
-	case Pawn:
-		return "Пешка"
-	case Rook:
-		return "Ладья"
-	case Knight:
-		return "Конь"
-	case Bishop:
-		return "Слон"
-	case Queen:
-		return "Ферзь"
-	case King:
-		return "Король"
-	default:
-		return "Фигура"
-	}
-}
-
-func (g *Game) ObjectType() string { return "игра" }
-
-func (g *Game) RenderLines() []string {
-	return strings.Split(g.Render(), "\n")
-}
-
-// RenderLinesWithoutHistory возвращает отображение игры без блока "История ходов".
-func (g *Game) RenderLinesWithoutHistory() []string {
-	full := strings.Split(g.Render(), "\n")
-	for i, line := range full {
-		if strings.Contains(line, "История ходов:") {
-			return full[:i]
-		}
-	}
-	return full
 }
 
 func (g Game) MarshalJSON() ([]byte, error) {

@@ -18,7 +18,6 @@ func TestNewPlayer(t *testing.T) {
 	p.SetID(42)
 	assert.Equal(t, 42, p.ID())
 
-	assert.Equal(t, "игрок", p.ObjectType())
 }
 
 func TestPlayer_MarshalJSON(t *testing.T) {

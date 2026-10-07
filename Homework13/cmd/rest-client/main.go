@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"mod.go/internal/model"
+	"mod.go/internal/render/tui"
 )
 
 var serverAddr = flag.String("addr", "http://localhost:8080", "адрес сервера")
@@ -316,7 +317,7 @@ func simulationFromMenu(inputChan chan string) {
 
 func renderGame(game model.Game, id int) {
 	fmt.Print("\033[H\033[2J")
-	rendered := game.Render()
+	rendered := tui.RenderGame(&game)
 	idx := strings.Index(rendered, "История ходов:")
 	if idx == -1 {
 		fmt.Printf("ID игры: %d\n%s", id, rendered)
@@ -438,7 +439,6 @@ func gameSession(id int, inputChan chan string) error {
 				continue
 			}
 			muGame.Unlock()
-			printPrompt(game)
 			continue
 		}
 
@@ -509,8 +509,8 @@ func gameSession(id int, inputChan chan string) error {
 			}
 			startSimulations(n, game.Board().Rows(), game.Board().Cols())
 			simActive = true
+			startSimulationsRenderer()
 			muGame.Unlock()
-			printPrompt(game)
 			continue
 		}
 
@@ -838,7 +838,7 @@ func startSimulationsRenderer() {
 		defer ticker.Stop()
 		for range ticker.C {
 			if !simActive {
-				continue
+				return
 			}
 			muSim.Lock()
 			fmt.Print("\033[H\033[2J")
@@ -851,10 +851,10 @@ func startSimulationsRenderer() {
 			}
 
 			if len(active) > 0 {
-				sampleLines := active[0].Game.RenderLinesWithoutHistory()
+				sampleLines := tui.RenderGameWithoutHistory(&active[0].Game)
 				boardWidth := 0
 				if len(sampleLines) > 0 {
-					boardWidth = model.VisibleLength(sampleLines[0])
+					boardWidth = tui.VisibleLength(sampleLines[0])
 				}
 				gap := 3
 				perRow := 3
@@ -874,7 +874,7 @@ func startSimulationsRenderer() {
 					boards := make([][]string, len(group))
 					maxRows := 0
 					for i, sim := range group {
-						lines := sim.Game.RenderLinesWithoutHistory()
+						lines := tui.RenderGameWithoutHistory(&sim.Game)
 						boards[i] = lines
 						if len(lines) > maxRows {
 							maxRows = len(lines)
@@ -883,7 +883,7 @@ func startSimulationsRenderer() {
 					widths := make([]int, len(group))
 					for i, b := range boards {
 						for _, line := range b {
-							w := model.VisibleLength(line)
+							w := tui.VisibleLength(line)
 							if w > widths[i] {
 								widths[i] = w
 							}
@@ -893,7 +893,7 @@ func startSimulationsRenderer() {
 						for i := 0; i < len(group); i++ {
 							if row < len(boards[i]) {
 								text := boards[i][row]
-								fmt.Print(model.PadWithSpaces(text, widths[i]) + "   ")
+								fmt.Print(tui.PadWithSpaces(text, widths[i]) + "   ")
 							} else {
 								fmt.Print(strings.Repeat(" ", widths[i]) + "   ")
 							}

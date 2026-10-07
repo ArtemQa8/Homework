@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewGame(t *testing.T) {
-	game := model.NewGame("Иван Иванов", "Пётр Петров", 8, 8)
+	game := model.NewGame(*model.NewPlayer("Иван Иванов"), *model.NewPlayer("Пётр Петров"), 8, 8)
 
 	assert.Equal(t, "Иван Иванов", game.Player1().Name())
 	assert.Equal(t, "Пётр Петров", game.Player2().Name())
@@ -27,7 +27,7 @@ func TestNewGame(t *testing.T) {
 }
 
 func TestGame_Methods(t *testing.T) {
-	game := model.NewGame("Иван Иванов", "Пётр Петров", 8, 8)
+	game := model.NewGame(*model.NewPlayer("Иван Иванов"), *model.NewPlayer("Пётр Петров"), 8, 8)
 
 	game.SetID(12)
 	assert.Equal(t, 12, game.ID())
@@ -43,11 +43,6 @@ func TestGame_Methods(t *testing.T) {
 	game.SetPlayer2Color(model.White)
 	assert.Equal(t, model.Black, game.Player1Color())
 	assert.Equal(t, model.White, game.Player2Color())
-
-	newBoard := model.NewBoard(4, 4)
-	game.SetBoard(newBoard)
-	assert.Equal(t, 4, game.Board().Rows())
-	assert.Equal(t, 4, game.Board().Cols())
 }
 
 func TestGame_MakeMove_StartMoves(t *testing.T) {
@@ -70,7 +65,7 @@ func TestGame_MakeMove_StartMoves(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			game := model.NewGame("A", "B", 8, 8)
+			game := model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 
 			require.Empty(t, game.Moves())
 			require.Equal(t, model.White, game.CurrentColor())
@@ -136,8 +131,7 @@ func TestGame_MakeMove_AllPieces(t *testing.T) {
 			board.SetPiece(tt.fromRow, tt.fromCol,
 				model.NewPiece(model.White, tt.pieceType))
 
-			game := model.NewGame("A", "B", 8, 8)
-			game.SetBoard(board)
+			game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 			require.Equal(t, model.White, game.CurrentColor())
 
@@ -178,7 +172,7 @@ func TestGame_MakeMove_BlackStartMoves(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			game := model.NewGame("A", "B", 8, 8)
+			game := model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 
 			whiteMove := model.NewMove(1, 4, 3, 4) // e2-e4
 			require.NoError(t, game.MakeMove(whiteMove))
@@ -213,7 +207,7 @@ func TestGame_MakeMove_BlackStartMoves(t *testing.T) {
 }
 
 func TestGame_MakeMove_FewMoves(t *testing.T) {
-	game := model.NewGame("A", "B", 8, 8)
+	game := model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 
 	sequence := []struct {
 		name      string
@@ -264,7 +258,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 		{
 			name: "выход за границы (toRow=99)",
 			setup: func() *model.Game {
-				return model.NewGame("A", "B", 8, 8)
+				return model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 			},
 			move:    model.NewMove(1, 4, 99, 4),
 			wantErr: true,
@@ -272,7 +266,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 		{
 			name: "выход за границы (fromCol=-1)",
 			setup: func() *model.Game {
-				return model.NewGame("A", "B", 8, 8)
+				return model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 			},
 			move:    model.NewMove(1, -1, 3, 4),
 			wantErr: true,
@@ -280,7 +274,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 		{
 			name: "стартовая клетка пуста",
 			setup: func() *model.Game {
-				return model.NewGame("A", "B", 8, 8)
+				return model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 			},
 			move:    model.NewMove(4, 4, 5, 4), // e5 пусто
 			wantErr: true,
@@ -288,7 +282,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 		{
 			name: "фигура чужого цвета при ходе белых",
 			setup: func() *model.Game {
-				return model.NewGame("A", "B", 8, 8)
+				return model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 			},
 			move:    model.NewMove(6, 4, 4, 4), // e7-e5 чёрной пешкой
 			wantErr: true,
@@ -299,8 +293,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 			setup: func() *model.Game {
 				board := emptyBoard(8, 8)
 				board.SetPiece(4, 4, model.NewPiece(model.White, model.Pawn))
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:    model.NewMove(4, 4, 3, 4), // пешка назад
@@ -311,8 +304,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 			setup: func() *model.Game {
 				board := emptyBoard(8, 8)
 				board.SetPiece(4, 4, model.NewPiece(model.White, model.Rook))
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:    model.NewMove(4, 4, 2, 2), // ладья по диагонали
@@ -323,8 +315,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 			setup: func() *model.Game {
 				board := emptyBoard(8, 8)
 				board.SetPiece(4, 4, model.NewPiece(model.White, model.Knight))
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:    model.NewMove(4, 4, 6, 4), // конь прямо
@@ -338,8 +329,7 @@ func TestGame_MakeMove_Errors(t *testing.T) {
 				board.SetPiece(1, 4, model.NewPiece(model.White, model.Rook)) // заслон
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.Rook)) // бьёт по вертикали
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:    model.NewMove(1, 4, 1, 3), // ладья уходит с заслона
@@ -384,8 +374,7 @@ func TestGame_MakeMove_Captures(t *testing.T) {
 				board := emptyBoard(8, 8)
 				board.SetPiece(3, 4, model.NewPiece(model.White, model.Pawn)) // e4
 				board.SetPiece(4, 5, model.NewPiece(model.Black, model.Pawn)) // f5
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:         model.NewMove(3, 4, 4, 5), // e4xf5
@@ -398,8 +387,7 @@ func TestGame_MakeMove_Captures(t *testing.T) {
 				board := emptyBoard(8, 8)
 				board.SetPiece(4, 0, model.NewPiece(model.White, model.Rook))  // a5
 				board.SetPiece(4, 4, model.NewPiece(model.Black, model.Queen)) // e5
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:         model.NewMove(4, 0, 4, 4), // a5xe5
@@ -412,8 +400,7 @@ func TestGame_MakeMove_Captures(t *testing.T) {
 				board := emptyBoard(8, 8)
 				board.SetPiece(4, 0, model.NewPiece(model.White, model.Rook))
 				board.SetPiece(4, 4, model.NewPiece(model.White, model.Pawn)) // своя
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:    model.NewMove(4, 0, 4, 4),
@@ -428,8 +415,7 @@ func TestGame_MakeMove_Captures(t *testing.T) {
 				board.SetPiece(4, 5, model.NewPiece(model.Black, model.Pawn))   // f5 — блок справа
 				board.SetPiece(3, 4, model.NewPiece(model.Black, model.Pawn))   // e4 — блок сверху
 				board.SetPiece(2, 5, model.NewPiece(model.Black, model.Queen))  // f6 — цель взятия
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:         model.NewMove(4, 4, 2, 5), // e5xf6, через блоки
@@ -442,8 +428,7 @@ func TestGame_MakeMove_Captures(t *testing.T) {
 				board := emptyBoard(8, 8)
 				board.SetPiece(3, 4, model.NewPiece(model.White, model.Pawn)) // e4
 				board.SetPiece(4, 4, model.NewPiece(model.Black, model.Pawn)) // e5 — прямо впереди
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			move:    model.NewMove(3, 4, 4, 4),
@@ -494,8 +479,7 @@ func TestGame_MakeMove_Castling(t *testing.T) {
 			board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 			board.SetPiece(0, tt.rookFromCol, model.NewPiece(model.White, model.Rook))
 
-			game := model.NewGame("A", "B", 8, 8)
-			game.SetBoard(board)
+			game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 			move := model.NewMove(0, 4, 0, tt.kingToCol)
 			err := game.MakeMove(move)
@@ -540,8 +524,7 @@ func TestGame_MakeMove_Castling_Black(t *testing.T) {
 			board.SetPiece(7, 4, model.NewPiece(model.Black, model.King)) // e8
 			board.SetPiece(7, tt.rookFromCol, model.NewPiece(model.Black, model.Rook))
 
-			game := model.NewGame("A", "B", 8, 8)
-			game.SetBoard(board)
+			game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 			whiteMove := model.NewMove(4, 0, 3, 0)
 			require.NoError(t, game.MakeMove(whiteMove))
@@ -585,8 +568,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))   // e1
 				board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook))   // h1
 				board.SetPiece(0, 6, model.NewPiece(model.White, model.Bishop)) // g1 — блок
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			fromCol: 4, toCol: 6,
@@ -598,8 +580,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook))
 				board.SetPiece(0, 5, model.NewPiece(model.White, model.Bishop)) // f1 — блок
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			fromCol: 4, toCol: 6,
@@ -610,8 +591,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board := emptyBoard(8, 8)
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				// ладью НЕ ставим
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			fromCol: 4, toCol: 6,
@@ -623,8 +603,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook))
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.Rook)) // e8 — бьёт e1
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			fromCol: 4, toCol: 6,
@@ -636,8 +615,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook))
 				board.SetPiece(7, 5, model.NewPiece(model.Black, model.Rook)) // f8 — бьёт f1
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			fromCol: 4, toCol: 6,
@@ -650,8 +628,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook))
 				// чёрная ладья бьёт g1, но НЕ f1 и НЕ e1
 				board.SetPiece(7, 6, model.NewPiece(model.Black, model.Rook)) // g8 — бьёт g1
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			fromCol: 4, toCol: 6,
@@ -663,8 +640,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook))
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King)) // чтобы чёрные могли ходить
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// туда-обратно
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 5))) // Ke1-f1
@@ -682,8 +658,7 @@ func TestGame_MakeMove_Castling_Restrictions(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook))
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King))
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				require.NoError(t, game.MakeMove(model.NewMove(0, 7, 1, 7))) // Rh1-h2
 				require.NoError(t, game.MakeMove(model.NewMove(7, 4, 7, 3))) // Ke8-d8
@@ -729,8 +704,7 @@ func TestGame_MakeMove_Castling_Restrictions_Black(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.Rook)) // h8
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King)) // e1
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 3))) // Ke1-d1
 				require.NoError(t, game.MakeMove(model.NewMove(7, 4, 7, 3))) // Ke8-d8
@@ -749,8 +723,7 @@ func TestGame_MakeMove_Castling_Restrictions_Black(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.Rook)) // h8
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King)) // e1
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 3))) // Ke1-d1
 				require.NoError(t, game.MakeMove(model.NewMove(7, 7, 6, 7))) // Rh8-h7
@@ -769,8 +742,7 @@ func TestGame_MakeMove_Castling_Restrictions_Black(t *testing.T) {
 				board.SetPiece(7, 0, model.NewPiece(model.Black, model.Rook)) // a8
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King)) // e1
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 3))) // Ke1-d1
 				require.NoError(t, game.MakeMove(model.NewMove(7, 0, 6, 0))) // Ra8-a7
@@ -823,8 +795,7 @@ func TestGame_MakeMove_Castling_SmallBoards(t *testing.T) {
 			board.SetPiece(0, tt.kingCol, model.NewPiece(model.White, model.King))
 			board.SetPiece(0, tt.cols-1, model.NewPiece(model.White, model.Rook))
 
-			game := model.NewGame("A", "B", tt.rows, tt.cols)
-			game.SetBoard(board)
+			game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 			toCol := tt.kingCol + 2
 			move := model.NewMove(0, tt.kingCol, 0, toCol)
@@ -868,8 +839,7 @@ func TestGame_MakeMove_EnPassant(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King)) // e1
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King)) // e8
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// 1. Белые: Ke1-d1 (нейтральный)
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 3)))
@@ -900,8 +870,7 @@ func TestGame_MakeMove_EnPassant(t *testing.T) {
 				board.SetPiece(3, 3, model.NewPiece(model.Black, model.Pawn)) // d4
 				board.SetPiece(1, 4, model.NewPiece(model.White, model.Pawn)) // e2
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// 1. Белые: e2-e4 (двойной)
 				require.NoError(t, game.MakeMove(model.NewMove(1, 4, 3, 4)))
@@ -932,8 +901,7 @@ func TestGame_MakeMove_EnPassant(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// 1. Белые: Ke1-d1
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 3)))
@@ -954,8 +922,7 @@ func TestGame_MakeMove_EnPassant(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// 1. Белые: Ke1-d1
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 3)))
@@ -976,8 +943,7 @@ func TestGame_MakeMove_EnPassant(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King)) // e1
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King)) // e8
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// 1. Белые: Ke1-d1 (нейтральный)
 				require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 3)))
@@ -1043,8 +1009,7 @@ func TestGame_MakeMove_CheckAndMate(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))  // e1
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King))  // e8
 				board.SetPiece(0, 3, model.NewPiece(model.White, model.Queen)) // d1
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game, model.NewMove(0, 3, 1, 3) // Qd1-d2
 			},
 			wantCheck: false,
@@ -1058,8 +1023,7 @@ func TestGame_MakeMove_CheckAndMate(t *testing.T) {
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King))  // e8
 				board.SetPiece(3, 3, model.NewPiece(model.White, model.Queen)) // d4
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// Qd4-e4+ - шах по вертикали e
 				return game, model.NewMove(3, 3, 3, 4)
@@ -1080,8 +1044,7 @@ func TestGame_MakeMove_CheckAndMate(t *testing.T) {
 				board.SetPiece(6, 4, model.NewPiece(model.Black, model.Pawn)) // e7
 				board.SetPiece(6, 5, model.NewPiece(model.Black, model.Pawn)) // f7
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// Ra1-a8# - мат
 				return game, model.NewMove(0, 0, 7, 0)
@@ -1128,8 +1091,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(6, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				move := model.NewMove(6, 4, 7, 4)
 				move.Promotion = model.Queen
@@ -1146,8 +1108,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(6, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				move := model.NewMove(6, 4, 7, 4)
 				move.Promotion = model.Rook
@@ -1164,8 +1125,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(6, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				move := model.NewMove(6, 4, 7, 4)
 				move.Promotion = model.Bishop
@@ -1182,8 +1142,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(6, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				move := model.NewMove(6, 4, 7, 4)
 				move.Promotion = model.Knight
@@ -1200,8 +1159,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(1, 4, model.NewPiece(model.Black, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				// первый ход белых — переключаем на чёрных
 				require.NoError(t, game.MakeMove(model.NewMove(0, 0, 0, 1))) // Ka1-b1
@@ -1221,8 +1179,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(1, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				move := model.NewMove(1, 4, 3, 4)
 				move.Promotion = model.Queen
@@ -1239,8 +1196,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(6, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				return game, model.NewMove(6, 4, 7, 4)
 			},
@@ -1254,8 +1210,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(6, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				move := model.NewMove(6, 4, 7, 4)
 				move.Promotion = model.Pawn
@@ -1271,8 +1226,7 @@ func TestGame_MakeMove_Promotion(t *testing.T) {
 				board.SetPiece(7, 7, model.NewPiece(model.Black, model.King))
 				board.SetPiece(6, 4, model.NewPiece(model.White, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 				move := model.NewMove(6, 4, 7, 4)
 				move.Promotion = model.King
@@ -1337,8 +1291,7 @@ func TestGame_CheckmateStalemate(t *testing.T) {
 				board.SetPiece(6, 4, model.NewPiece(model.Black, model.Pawn))
 				board.SetPiece(6, 5, model.NewPiece(model.Black, model.Pawn))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			color:         model.Black,
@@ -1354,8 +1307,7 @@ func TestGame_CheckmateStalemate(t *testing.T) {
 
 				board.SetPiece(0, 7, model.NewPiece(model.Black, model.King)) // h8
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			color:         model.Black,
@@ -1369,8 +1321,7 @@ func TestGame_CheckmateStalemate(t *testing.T) {
 				board.SetPiece(0, 4, model.NewPiece(model.White, model.King))
 				board.SetPiece(7, 4, model.NewPiece(model.Black, model.King))
 
-				game := model.NewGame("A", "B", 8, 8)
-				game.SetBoard(board)
+				game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 				return game
 			},
 			color:         model.Black,
@@ -1392,7 +1343,7 @@ func TestGame_CheckmateStalemate(t *testing.T) {
 }
 
 func TestGame_MovesIsCopy(t *testing.T) {
-	game := model.NewGame("A", "B", 8, 8)
+	game := model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 
 	// делаем пару ходов
 	require.NoError(t, game.MakeMove(model.NewMove(1, 4, 3, 4))) // e2-e4
@@ -1415,7 +1366,7 @@ func TestGame_MovesIsCopy(t *testing.T) {
 }
 
 func TestGame_MarshalJSON(t *testing.T) {
-	game := model.NewGame("Иванов", "Петров", 8, 8)
+	game := model.NewGame(*model.NewPlayer("Иванов"), *model.NewPlayer("Петров"), 8, 8)
 	game.SetID(42)
 
 	data, err := json.Marshal(game)
@@ -1586,7 +1537,7 @@ func TestGame_UnmarshalJSON(t *testing.T) {
 }
 
 func TestGame_RoundTrip(t *testing.T) {
-	game := model.NewGame("Иванов", "Петров", 8, 8)
+	game := model.NewGame(*model.NewPlayer("Иванов"), *model.NewPlayer("Петров"), 8, 8)
 	game.SetID(42)
 
 	// делаем несколько ходов
@@ -1659,8 +1610,7 @@ func TestGame_RoundTrip_Flags(t *testing.T) {
 	board.SetPiece(7, 4, model.NewPiece(model.Black, model.King)) // e8
 	board.SetPiece(7, 0, model.NewPiece(model.Black, model.Rook)) // a8
 
-	game := model.NewGame("A", "B", 8, 8)
-	game.SetBoard(board)
+	game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 	// белые: Ke1-f1; чёрные: Ke8-d8; белые: Kf1-e1; чёрные: Kd8-e8
 	require.NoError(t, game.MakeMove(model.NewMove(0, 4, 0, 5)))
@@ -1715,8 +1665,7 @@ func TestGame_MakeMove_Errors_More(t *testing.T) {
 			board.SetPiece(tt.fromRow, tt.fromCol,
 				model.NewPiece(model.White, tt.piece))
 
-			game := model.NewGame("A", "B", 8, 8)
-			game.SetBoard(board)
+			game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 			movesBefore := len(game.Moves())
 			colorBefore := game.CurrentColor()
@@ -1740,8 +1689,7 @@ func TestGame_MakeMove_Castling_Check(t *testing.T) {
 	board.SetPiece(0, 7, model.NewPiece(model.White, model.Rook)) // h1
 	board.SetPiece(7, 5, model.NewPiece(model.Black, model.King)) // f8
 
-	game := model.NewGame("A", "B", 8, 8)
-	game.SetBoard(board)
+	game := model.NewGameWithBoard(*model.NewPlayer("A"), *model.NewPlayer("B"), board)
 
 	// короткая рокировка: Ke1-g1, ладья h1-f1
 	move := model.NewMove(0, 4, 0, 6)
@@ -1767,10 +1715,7 @@ func TestGame_MakeMove_Castling_Check(t *testing.T) {
 }
 
 func TestGame_SimpleMethods(t *testing.T) {
-	game := model.NewGame("A", "B", 8, 8)
-
-	// ObjectType
-	assert.Equal(t, "игра", game.ObjectType())
+	game := model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
 
 	// InCheck - на старте никто не под шахом
 	assert.False(t, game.InCheck(model.White))

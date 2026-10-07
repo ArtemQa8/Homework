@@ -54,18 +54,18 @@ func New(
 func (h *Handlers) Login(c *gin.Context) {
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if req.Login != h.cfg.Login || req.Password != h.cfg.Password {
-		c.JSON(http.StatusUnauthorized, gin.H{"Ошибка": "неверный логин или пароль"})
+		respondError(c, http.StatusUnauthorized, "неверный логин или пароль")
 		return
 	}
 
 	token, err := auth.GenerateToken(req.Login, h.cfg.JWTSecret, h.cfg.JWTTTL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Ошибка": "не удалось создать токен"})
+		respondError(c, http.StatusInternalServerError, "не удалось создать токен")
 		return
 	}
 
@@ -90,13 +90,13 @@ func (h *Handlers) Login(c *gin.Context) {
 func (h *Handlers) CreatePlayer(c *gin.Context) {
 	var req dto.CreatePlayerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	created, err := h.playerService.Create(req.Name)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -127,14 +127,13 @@ func (h *Handlers) GetPlayers(c *gin.Context) {
 // @Failure      404  {object}  map[string]string
 // @Router       /api/players/{id} [get]
 func (h *Handlers) GetPlayerByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	player, err := h.playerService.Get(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, player)
@@ -156,19 +155,18 @@ func (h *Handlers) GetPlayerByID(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/players/{id} [put]
 func (h *Handlers) UpdatePlayer(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	var req dto.UpdatePlayerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	updated, err := h.playerService.Update(id, req.Name)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -188,13 +186,12 @@ func (h *Handlers) UpdatePlayer(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/players/{id} [delete]
 func (h *Handlers) DeletePlayer(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	if err := h.playerService.Delete(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -218,22 +215,16 @@ func (h *Handlers) DeletePlayer(c *gin.Context) {
 func (h *Handlers) CreateGame(c *gin.Context) {
 	var req dto.CreateGameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	p1 := model.NewPlayer(req.Player1.Name)
-	if req.Player1.ID != 0 {
-		p1.SetID(req.Player1.ID)
-	}
-	p2 := model.NewPlayer(req.Player2.Name)
-	if req.Player2.ID != 0 {
-		p2.SetID(req.Player2.ID)
-	}
+	p1 := playerFromDTO(req.Player1)
+	p2 := playerFromDTO(req.Player2)
 
-	created, err := h.gameService.Create(*p1, *p2, req.Rows, req.Cols)
+	created, err := h.gameService.Create(p1, p2, req.Rows, req.Cols)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -264,14 +255,13 @@ func (h *Handlers) GetGames(c *gin.Context) {
 // @Failure      404  {object}  map[string]string
 // @Router       /api/games/{id} [get]
 func (h *Handlers) GetGameByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	game, err := h.gameService.Get(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": "игра не найдена"})
+		respondError(c, http.StatusNotFound, "игра не найдена")
 		return
 	}
 	c.JSON(http.StatusOK, game)
@@ -293,29 +283,22 @@ func (h *Handlers) GetGameByID(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/games/{id} [put]
 func (h *Handlers) UpdateGame(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	var req dto.UpdateGameRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	p1 := model.NewPlayer(req.Player1.Name)
-	if req.Player1.ID != 0 {
-		p1.SetID(req.Player1.ID)
-	}
-	p2 := model.NewPlayer(req.Player2.Name)
-	if req.Player2.ID != 0 {
-		p2.SetID(req.Player2.ID)
-	}
+	p1 := playerFromDTO(req.Player1)
+	p2 := playerFromDTO(req.Player2)
 
-	updated, err := h.gameService.Update(id, *p1, *p2)
+	updated, err := h.gameService.Update(id, p1, p2)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, updated)
@@ -334,13 +317,12 @@ func (h *Handlers) UpdateGame(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/games/{id} [delete]
 func (h *Handlers) DeleteGame(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	if err := h.gameService.Delete(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -362,31 +344,22 @@ func (h *Handlers) DeleteGame(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/games/{id}/move [post]
 func (h *Handlers) MakeMove(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 
 	var req dto.MakeMoveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	move := &model.Move{
-		FromRow: req.FromRow,
-		FromCol: req.FromCol,
-		ToRow:   req.ToRow,
-		ToCol:   req.ToCol,
-	}
-	if req.Promotion != nil {
-		move.Promotion = *req.Promotion
-	}
+	move := moveFromDTO(req.FromRow, req.FromCol, req.ToRow, req.ToCol, req.Promotion)
 
-	updated, err := h.gameService.MakeMove(id, move)
+	updated, err := h.gameService.MakeMove(id, &move)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -407,19 +380,31 @@ func (h *Handlers) MakeMove(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/games/{id}/auto-move [post]
 func (h *Handlers) AutoMove(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 
 	updated, err := h.gameService.AutoMove(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.AutoMoveResponse{Game: toGameResponse(updated)})
+	resp := dto.AutoMoveResponse{Game: toGameResponse(updated)}
+	color := updated.CurrentColor()
+	if updated.Checkmate(color) {
+		resp.Mate = true
+		winner := "Белые"
+		if color == model.White {
+			winner = "Чёрные"
+		}
+		resp.Winner = winner
+	} else if updated.Stalemate(color) {
+		resp.Stalemate = true
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 // =============MOVES=============
@@ -440,24 +425,16 @@ func (h *Handlers) AutoMove(c *gin.Context) {
 func (h *Handlers) CreateMove(c *gin.Context) {
 	var req dto.CreateMoveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	move := model.Move{
-		FromRow: req.FromRow,
-		FromCol: req.FromCol,
-		ToRow:   req.ToRow,
-		ToCol:   req.ToCol,
-	}
-	if req.Promotion != nil {
-		move.Promotion = *req.Promotion
-	}
+	move := moveFromDTO(req.FromRow, req.FromCol, req.ToRow, req.ToCol, req.Promotion)
 	move.SetGameID(req.GameID)
 
 	created, err := h.moveService.Create(move)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	c.JSON(http.StatusCreated, created)
@@ -487,14 +464,13 @@ func (h *Handlers) GetMoves(c *gin.Context) {
 // @Failure      404  {object}  map[string]string
 // @Router       /api/moves/{id} [get]
 func (h *Handlers) GetMoveByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	move, err := h.moveService.Get(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, move)
@@ -516,30 +492,24 @@ func (h *Handlers) GetMoveByID(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/moves/{id} [put]
 func (h *Handlers) UpdateMove(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 
 	var req dto.UpdateMoveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	move := model.Move{
-		FromRow: req.FromRow,
-		FromCol: req.FromCol,
-		ToRow:   req.ToRow,
-		ToCol:   req.ToCol,
-	}
+	move := moveFromDTO(req.FromRow, req.FromCol, req.ToRow, req.ToCol, nil)
 	move.SetGameID(req.GameID)
 	move.SetID(id)
 
 	updated, err := h.moveService.Update(id, move)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, updated)
@@ -558,13 +528,12 @@ func (h *Handlers) UpdateMove(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/moves/{id} [delete]
 func (h *Handlers) DeleteMove(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Ошибка": "неверный ID"})
+	id, ok := parseID(c)
+	if !ok {
 		return
 	}
 	if err := h.moveService.Delete(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"Ошибка": err.Error()})
+		respondError(c, http.StatusNotFound, err.Error())
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -591,7 +560,7 @@ func (h *Handlers) IndexPage(c *gin.Context) {
 			fmt.Fprintf(&builder, "<td><a href=\"/game?id=%d\">%d</a></td>", game.ID(), game.ID())
 			fmt.Fprintf(&builder, "<td>%s</td>", game.Player1().Name())
 			fmt.Fprintf(&builder, "<td>%s</td>", game.Player2().Name())
-			fmt.Fprintf(&builder, "<td>%s</td>", colorToString(game.CurrentColor()))
+			fmt.Fprintf(&builder, "<td>%s</td>", game.CurrentColor().Name())
 			fmt.Fprintf(&builder, "<td>%d</td>", len(game.Moves()))
 
 			if len(game.Moves()) > 0 {
@@ -601,21 +570,8 @@ func (h *Handlers) IndexPage(c *gin.Context) {
 				builder.WriteString("<td>-</td>")
 			}
 
-			if game.Board() != nil {
-				if game.Checkmate(game.CurrentColor()) {
-					winnerColor := "Белые"
-					if game.CurrentColor() == model.White {
-						winnerColor = "Чёрные"
-					}
-					fmt.Fprintf(&builder, "<td>Мат. Победили %s</td>", winnerColor)
-				} else if game.Stalemate(game.CurrentColor()) {
-					builder.WriteString("<td>Пат</td>")
-				} else {
-					builder.WriteString("<td>Идёт</td>")
-				}
-			} else {
-				builder.WriteString("<td>Нет доски</td>")
-			}
+			fmt.Fprintf(&builder, "<td>%s</td>", gameResult(game))
+
 			builder.WriteString("</tr>")
 		}
 		builder.WriteString("</table>")
@@ -651,7 +607,7 @@ func (h *Handlers) GamePage(c *gin.Context) {
 	fmt.Fprintf(&builder, "<h1>Игра #%d</h1>", id)
 
 	fmt.Fprintf(&builder, "<p>Белые: %s | Чёрные: %s</p>", game.Player1().Name(), game.Player2().Name())
-	fmt.Fprintf(&builder, "<p>Текущий ход: %s</p>", colorToString(game.CurrentColor()))
+	fmt.Fprintf(&builder, "<p>Текущий ход: %s</p>", game.CurrentColor().Name())
 
 	builder.WriteString("<table class=\"chess\">")
 	for r := 0; r < game.Board().Rows(); r++ {
@@ -662,7 +618,7 @@ func (h *Handlers) GamePage(c *gin.Context) {
 			if (r+c)%2 != 0 {
 				cellColor = "black"
 			}
-			fmt.Fprintf(&builder, `<td class="cell %s">%s</td>`, cellColor, pieceSymbol(piece))
+			fmt.Fprintf(&builder, `<td class="cell %s">%s</td>`, cellColor, piece.Symbol())
 		}
 		builder.WriteString("</tr>")
 	}
@@ -673,17 +629,7 @@ func (h *Handlers) GamePage(c *gin.Context) {
 		fmt.Fprintf(&builder, "<p>Последний ход: %s</p>", model.FormatMove(last))
 	}
 
-	if game.Checkmate(game.CurrentColor()) {
-		winnerColor := "Белые"
-		if game.CurrentColor() == model.White {
-			winnerColor = "Чёрные"
-		}
-		fmt.Fprintf(&builder, "<p>Результат: Мат. Победили %s</p>", winnerColor)
-	} else if game.Stalemate(game.CurrentColor()) {
-		builder.WriteString("<p>Результат: Пат</p>")
-	} else {
-		builder.WriteString("<p>Партия продолжается</p>")
-	}
+	fmt.Fprintf(&builder, "<p>Результат: %s</p>", gameResult(game))
 
 	builder.WriteString(`<p><a href="/">← Назад к списку</a></p>`)
 	builder.WriteString("</body></html>")
@@ -691,20 +637,6 @@ func (h *Handlers) GamePage(c *gin.Context) {
 }
 
 // =============HELPERS=============
-
-func colorToString(color model.Color) string {
-	if color == model.White {
-		return "Белые"
-	}
-	return "Чёрные"
-}
-
-func pieceSymbol(p *model.Piece) string {
-	if p == nil {
-		return ""
-	}
-	return p.Symbol()
-}
 
 func toGameResponse(game model.Game) dto.GameResponse {
 	var board *dto.BoardResponse
@@ -715,8 +647,8 @@ func toGameResponse(game model.Game) dto.GameResponse {
 			for c := 0; c < game.Board().Cols(); c++ {
 				if p := game.Board().PieceAt(r, c); p != nil {
 					cells[r][c] = &dto.PieceResponse{
-						Color: colorToString(p.Color()),
-						Type:  pieceTypeToString(p.Type()),
+						Color: p.Color().Name(),
+						Type:  p.Type().Name(),
 					}
 				}
 			}
@@ -733,15 +665,15 @@ func toGameResponse(game model.Game) dto.GameResponse {
 		var captured *dto.PieceResponse
 		if m.Captured != nil {
 			captured = &dto.PieceResponse{
-				Color: colorToString(m.Captured.Color()),
-				Type:  pieceTypeToString(m.Captured.Type()),
+				Color: m.Captured.Color().Name(),
+				Type:  m.Captured.Type().Name(),
 			}
 		}
 		var movedPiece *dto.PieceResponse
 		if m.MovedPiece != nil {
 			movedPiece = &dto.PieceResponse{
-				Color: colorToString(m.MovedPiece.Color()),
-				Type:  pieceTypeToString(m.MovedPiece.Type()),
+				Color: m.MovedPiece.Color().Name(),
+				Type:  m.MovedPiece.Type().Name(),
 			}
 		}
 		moves[i] = dto.MoveResponse{
@@ -752,7 +684,7 @@ func toGameResponse(game model.Game) dto.GameResponse {
 			ToRow:      m.ToRow,
 			ToCol:      m.ToCol,
 			Captured:   captured,
-			Promotion:  pieceTypeToString(m.Promotion),
+			Promotion:  m.Promotion.Name(),
 			MovedPiece: movedPiece,
 			Check:      m.Check,
 			Mate:       m.Mate,
@@ -764,33 +696,71 @@ func toGameResponse(game model.Game) dto.GameResponse {
 		Player1: dto.GamePlayerResponse{
 			ID:    game.Player1().ID(),
 			Name:  game.Player1().Name(),
-			Color: colorToString(game.Player1Color()),
+			Color: game.Player1Color().Name(),
 		},
 		Player2: dto.GamePlayerResponse{
 			ID:    game.Player2().ID(),
 			Name:  game.Player2().Name(),
-			Color: colorToString(game.Player2Color()),
+			Color: game.Player2Color().Name(),
 		},
 		Board:   board,
-		Current: colorToString(game.CurrentColor()),
+		Current: game.CurrentColor().Name(),
 		Moves:   moves,
 	}
 }
 
-func pieceTypeToString(t model.PieceType) string {
-	switch t {
-	case model.Pawn:
-		return "Пешка"
-	case model.Rook:
-		return "Ладья"
-	case model.Knight:
-		return "Конь"
-	case model.Bishop:
-		return "Слон"
-	case model.Queen:
-		return "Ферзь"
-	case model.King:
-		return "Король"
+// parseID парсит ID из URL-параметра ":id".
+func parseID(c *gin.Context) (id int, ok bool) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "неверный ID")
+		return 0, false
 	}
-	return ""
+	return id, true
+}
+
+// respondError отправляет JSON-ответ с ошибкой.
+func respondError(c *gin.Context, status int, msg string) {
+	c.JSON(status, gin.H{"ошибка": msg})
+}
+
+// gameResult возвращает текстовое описание результата партии.
+func gameResult(game model.Game) string {
+	if game.Board() == nil {
+		return "Нет доски"
+	}
+	if game.Checkmate(game.CurrentColor()) {
+		winner := "Белые"
+		if game.CurrentColor() == model.White {
+			winner = "Чёрные"
+		}
+		return "Мат. Победили " + winner
+	}
+	if game.Stalemate(game.CurrentColor()) {
+		return "Пат"
+	}
+	return "Продолжается"
+}
+
+// playerFromDTO конвертирует DTO-игрока в модель.
+func playerFromDTO(p dto.GamePlayerName) model.Player {
+	player := model.NewPlayer(p.Name)
+	if p.ID != 0 {
+		player.SetID(p.ID)
+	}
+	return *player
+}
+
+// moveFromDTO создаёт model.Move из полей DTO.
+func moveFromDTO(fromRow, fromCol, toRow, toCol int, promotion *model.PieceType) model.Move {
+	move := model.Move{
+		FromRow: fromRow,
+		FromCol: fromCol,
+		ToRow:   toRow,
+		ToCol:   toCol,
+	}
+	if promotion != nil {
+		move.Promotion = *promotion
+	}
+	return move
 }

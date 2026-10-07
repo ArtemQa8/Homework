@@ -20,11 +20,25 @@ func NewMove(fromRow, fromCol, toRow, toCol int) *Move {
 	return &Move{FromRow: fromRow, FromCol: fromCol, ToRow: toRow, ToCol: toCol}
 }
 
-func (m Move) ObjectType() string { return "ход" }
-func (m Move) ID() int            { return m.id }
-func (m *Move) SetID(id int)      { m.id = id }
-func (m Move) GameID() int        { return m.gameID }
-func (m *Move) SetGameID(id int)  { m.gameID = id }
+func (m Move) ID() int           { return m.id }
+func (m *Move) SetID(id int)     { m.id = id }
+func (m Move) GameID() int       { return m.gameID }
+func (m *Move) SetGameID(id int) { m.gameID = id }
+
+// IsPromotion проверяет, является ли ход превращением пешки.
+// Ход - превращение, если фигура на стартовой клетке - пешка,
+// и она достигает последнего ряда (для белых - rows-1, для чёрных - 0).
+func (m *Move) IsPromotion(board *Board) bool {
+	piece := board.PieceAt(m.FromRow, m.FromCol)
+	if piece == nil || piece.Type() != Pawn {
+		return false
+	}
+	lastRow := 0
+	if piece.Color() == White {
+		lastRow = board.Rows() - 1
+	}
+	return m.ToRow == lastRow
+}
 
 // omitempty - Если наше поле будет "нулевым", то его не будет в джисоне
 func (m Move) MarshalJSON() ([]byte, error) {

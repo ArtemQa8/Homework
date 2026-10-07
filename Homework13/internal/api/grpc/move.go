@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"mod.go/internal/model"
 	pb "mod.go/internal/proto"
 	"mod.go/internal/service"
 )
@@ -22,17 +21,7 @@ func NewMoveServer(moveService *service.MoveService) *MoveServer {
 }
 
 func (s *MoveServer) CreateMove(ctx context.Context, req *pb.CreateMoveRequest) (*pb.Move, error) {
-	move := model.Move{
-		FromRow: int(req.FromRow),
-		FromCol: int(req.FromCol),
-		ToRow:   int(req.ToRow),
-		ToCol:   int(req.ToCol),
-	}
-
-	if req.Promotion != pb.PieceType_PIECE_TYPE_UNSPECIFIED {
-		move.Promotion = fromProtoPieceType(req.Promotion)
-	}
-
+	move := moveFromProto(req.FromRow, req.FromCol, req.ToRow, req.ToCol, req.Promotion)
 	move.SetGameID(int(req.GameId))
 
 	created, err := s.moveService.Create(move)
@@ -61,12 +50,7 @@ func (s *MoveServer) ListMoves(ctx context.Context, _ *emptypb.Empty) (*pb.ListM
 
 func (s *MoveServer) UpdateMove(ctx context.Context, req *pb.UpdateMoveRequest) (*pb.Move, error) {
 
-	move := model.Move{
-		FromRow: int(req.FromRow),
-		FromCol: int(req.FromCol),
-		ToRow:   int(req.ToRow),
-		ToCol:   int(req.ToCol),
-	}
+	move := moveFromProto(req.FromRow, req.FromCol, req.ToRow, req.ToCol, pb.PieceType_PIECE_TYPE_UNSPECIFIED)
 	move.SetGameID(int(req.GameId))
 	move.SetID(int(req.Id))
 

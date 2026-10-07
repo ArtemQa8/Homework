@@ -3,7 +3,9 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"mod.go/internal/model"
@@ -25,12 +27,12 @@ type Storage struct {
 	fileCounters string
 }
 
-func NewStorage() *Storage {
+func NewStorage(baseDir string) *Storage {
 	return &Storage{
-		fileGames:    "data/games.json",
-		filePlayers:  "data/players.json",
-		fileMoves:    "data/moves.json",
-		fileCounters: "data/counters.json",
+		fileGames:    filepath.Join(baseDir, "games.json"),
+		filePlayers:  filepath.Join(baseDir, "players.json"),
+		fileMoves:    filepath.Join(baseDir, "moves.json"),
+		fileCounters: filepath.Join(baseDir, "counters.json"),
 
 		nextGameID:   1,
 		nextPlayerID: 1,
@@ -101,7 +103,7 @@ func (s *Storage) LoadFromFiles() error {
 
 	// Чистим ходы, чьи игры были удалены.
 	if removed := s.cleanOrphanMoves(); removed > 0 {
-		fmt.Printf("Очищено %d осиротевших ходов (игры удалены)\n", removed)
+		log.Printf("Очищено %d осиротевших ходов (игры удалены)", removed)
 		_ = s.saveMoves()
 	}
 
@@ -544,22 +546,3 @@ func (s *Storage) DeleteMove(id int) error {
 	}
 	return fmt.Errorf("Ход с ID %d не найден", id)
 }
-
-func (s *Storage) Add(object model.StorageObject) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	switch v := object.(type) {
-	case *model.Game:
-		s.Games = append(s.Games, *v)
-		_ = s.saveGames()
-	case model.Player:
-		s.Players = append(s.Players, v)
-		_ = s.savePlayers()
-	case model.Move:
-		s.Moves = append(s.Moves, v)
-		_ = s.saveMoves()
-	}
-}
-
-func (s *Storage) Lock()   { s.mu.Lock() }
-func (s *Storage) Unlock() { s.mu.Unlock() }

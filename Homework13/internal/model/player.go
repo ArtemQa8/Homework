@@ -11,10 +11,9 @@ func NewPlayer(newName string) *Player {
 	return &Player{name: newName}
 }
 
-func (p Player) Name() string       { return p.name }
-func (p Player) ID() int            { return p.id }
-func (p *Player) SetID(id int)      { p.id = id }
-func (p Player) ObjectType() string { return "игрок" }
+func (p Player) Name() string  { return p.name }
+func (p Player) ID() int       { return p.id }
+func (p *Player) SetID(id int) { p.id = id }
 
 func (p Player) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {

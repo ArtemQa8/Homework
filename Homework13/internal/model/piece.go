@@ -24,14 +24,6 @@ const (
 	King
 )
 
-const (
-	Reset      = "\033[0m"
-	WhitePiece = "\033[31m"
-	BlackPiece = "\033[34m"
-	WhiteSqBg  = "\033[48;5;250m"
-	BlackSqBg  = "\033[48;5;240m"
-)
-
 type Piece struct {
 	color     Color
 	pieceType PieceType
@@ -44,59 +36,42 @@ func NewPiece(newColor Color, newType PieceType) *Piece {
 func (p *Piece) Color() Color    { return p.color }
 func (p *Piece) Type() PieceType { return p.pieceType }
 
-func (p *Piece) Render(bg string) string {
-	var colorCode string
-	if p.color == White {
-		colorCode = WhitePiece
-	} else {
-		colorCode = BlackPiece
+// Name возвращает название цвета на русском в именительном падеже.
+func (c Color) Name() string {
+	switch c {
+	case White:
+		return "Белые"
+	case Black:
+		return "Чёрные"
 	}
+	return "Неизвестно"
+}
 
-	var symbol string
-	switch p.pieceType {
+// Name возвращает название типа фигуры на русском.
+func (t PieceType) Name() string {
+	switch t {
 	case Pawn:
-		if p.color == White {
-			symbol = "♙"
-		} else {
-			symbol = "♟"
-		}
+		return "Пешка"
 	case Rook:
-		if p.color == White {
-			symbol = "♖"
-		} else {
-			symbol = "♜"
-		}
+		return "Ладья"
 	case Knight:
-		if p.color == White {
-			symbol = "♘"
-		} else {
-			symbol = "♞"
-		}
+		return "Конь"
 	case Bishop:
-		if p.color == White {
-			symbol = "♗"
-		} else {
-			symbol = "♝"
-		}
+		return "Слон"
 	case Queen:
-		if p.color == White {
-			symbol = "♕"
-		} else {
-			symbol = "♛"
-		}
+		return "Ферзь"
 	case King:
-		if p.color == White {
-			symbol = "♔"
-		} else {
-			symbol = "♚"
-		}
-	default:
-		symbol = " "
+		return "Король"
 	}
-	return bg + colorCode + " " + symbol + " " + Reset
+	return "Неизвестно"
 }
 
 func (p *Piece) Symbol() string {
+
+	if p == nil {
+		return ""
+	}
+
 	switch p.pieceType {
 	case Pawn:
 		if p.color == White {
@@ -184,13 +159,7 @@ func (p *Piece) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON превращает Color в строку.
 func (c Color) MarshalJSON() ([]byte, error) {
-	switch c {
-	case White:
-		return []byte(`"Белые"`), nil
-	case Black:
-		return []byte(`"Чёрные"`), nil
-	}
-	return []byte(`"Неизвестно"`), nil
+	return json.Marshal(c.Name())
 }
 
 // UnmarshalJSON превращает строку обратно в Color.
@@ -214,21 +183,7 @@ func (c *Color) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON превращает PieceType в строку.
 func (t PieceType) MarshalJSON() ([]byte, error) {
-	switch t {
-	case Pawn:
-		return []byte(`"Пешка"`), nil
-	case Rook:
-		return []byte(`"Ладья"`), nil
-	case Knight:
-		return []byte(`"Конь"`), nil
-	case Bishop:
-		return []byte(`"Слон"`), nil
-	case Queen:
-		return []byte(`"Ферзь"`), nil
-	case King:
-		return []byte(`"Король"`), nil
-	}
-	return []byte(`"Неизвестно"`), nil
+	return json.Marshal(t.Name())
 }
 
 // UnmarshalJSON превращает строку (или пустую строку/null) в PieceType.
@@ -246,7 +201,7 @@ func (t *PieceType) UnmarshalJSON(data []byte) error {
 		s = s[1 : len(s)-1]
 	}
 
-	// пустая строка (Swagger может прислать "") → поле не задано
+	// пустая строка (Swagger может прислать "") - поле не задано
 	if s == "" {
 		*t = Pawn
 		return nil

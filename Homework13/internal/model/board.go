@@ -41,19 +41,6 @@ func (b *Board) placePieces(row int, color Color) {
 	b.cells[row][c/2] = NewPiece(color, King)
 }
 
-func (b *Board) RenderCell(row, col int) string {
-	light := (row+col)%2 != 0
-	bg := BlackSqBg
-	if light {
-		bg = WhiteSqBg
-	}
-	p := b.cells[row][col]
-	if p == nil {
-		return bg + "   " + Reset
-	}
-	return p.Render(bg)
-}
-
 func (b *Board) PieceAt(row, col int) *Piece {
 	return b.cells[row][col]
 }

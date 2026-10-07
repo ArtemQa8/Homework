@@ -1,3 +1,13 @@
-
-# Coverage files (added by CoverLens)
+# Coverage
 coverage.out
+*.out
+
+# Secrets
+.env
+
+# Binaries
+*.exe
+*.test
+
+# Notes
+NOTES.md

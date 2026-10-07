@@ -25,7 +25,6 @@ func TestNewMove(t *testing.T) {
 	assert.Equal(t, 42, move.ID())
 	assert.Equal(t, 7, move.GameID())
 
-	assert.Equal(t, "ход", move.ObjectType())
 }
 
 func TestMove_MarshalJSON(t *testing.T) {
