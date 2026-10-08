@@ -1,0 +1,13 @@
+# Coverage
+coverage.out
+*.out
+
+# Secrets
+.env
+
+# Binaries
+*.exe
+*.test
+
+# Notes
+NOTES.md
