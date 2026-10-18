@@ -1,0 +1,594 @@
+package model
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+)
+
+type Game struct {
+	player1      Player
+	player2      Player
+	player1Color Color
+	player2Color Color
+	board        *Board
+	current      Color
+	moves        []Move
+	id           int
+
+	whiteKingMoved  bool
+	blackKingMoved  bool
+	whiteRookAMoved bool
+	whiteRookHMoved bool
+	blackRookAMoved bool
+	blackRookHMoved bool
+}
+
+func NewGame(p1, p2 Player, rows, cols int) *Game {
+	return &Game{
+		player1:      p1,
+		player2:      p2,
+		player1Color: White,
+		player2Color: Black,
+		board:        NewBoard(rows, cols),
+		current:      White,
+	}
+}
+
+func NewGameWithBoard(p1, p2 Player, board *Board) *Game {
+	return &Game{
+		player1:      p1,
+		player2:      p2,
+		player1Color: White,
+		player2Color: Black,
+		board:        board,
+		current:      White,
+	}
+}
+
+func (g *Game) Player1() Player     { return g.player1 }
+func (g *Game) Player2() Player     { return g.player2 }
+func (g *Game) Board() *Board       { return g.board }
+func (g *Game) CurrentColor() Color { return g.current }
+func (g *Game) ID() int             { return g.id }
+func (g *Game) SetID(id int)        { g.id = id }
+
+func (g *Game) SetPlayer1(player Player) { g.player1 = player }
+func (g *Game) SetPlayer2(player Player) { g.player2 = player }
+
+func (g *Game) Player1Color() Color { return g.player1Color }
+func (g *Game) Player2Color() Color { return g.player2Color }
+
+func (g *Game) SetPlayer1Color(color Color) { g.player1Color = color }
+func (g *Game) SetPlayer2Color(color Color) { g.player2Color = color }
+
+func (g *Game) Moves() []Move {
+	result := make([]Move, len(g.moves))
+	copy(result, g.moves)
+	return result
+}
+
+func (g *Game) InCheck(color Color) bool {
+	return kingInCheck(g, color)
+}
+
+func (g *Game) SetLastMoveID(id int) {
+	if len(g.moves) == 0 {
+		return
+	}
+	g.moves[len(g.moves)-1].id = id
+}
+
+// ── Приватные проверки (шах, легальность, мат) ────────────
+
+func kingInCheck(game *Game, color Color) bool {
+	var kingRow, kingCol int
+	found := false
+	for r := 0; r < game.board.Rows(); r++ {
+		for c := 0; c < game.board.Cols(); c++ {
+			p := game.board.PieceAt(r, c)
+			if p != nil && p.Color() == color && p.Type() == King {
+				kingRow, kingCol = r, c
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		return false
+	}
+
+	oppositeColor := White
+	if color == White {
+		oppositeColor = Black
+	}
+	for r := 0; r < game.board.Rows(); r++ {
+		for c := 0; c < game.board.Cols(); c++ {
+			p := game.board.PieceAt(r, c)
+			if p == nil || p.Color() != oppositeColor {
+				continue
+			}
+			checkMove := &Move{
+				FromRow: r, FromCol: c,
+				ToRow: kingRow, ToCol: kingCol,
+			}
+			rules := RulesFor(p)
+			if rules != nil && rules.CanMove(checkMove, game.board) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (g *Game) LegalMove(move *Move, color Color) bool {
+	pieceFrom := g.board.PieceAt(move.FromRow, move.FromCol)
+	pieceTo := g.board.PieceAt(move.ToRow, move.ToCol)
+
+	g.board.SetPiece(move.ToRow, move.ToCol, pieceFrom)
+	g.board.SetPiece(move.FromRow, move.FromCol, nil)
+
+	inCheck := kingInCheck(g, color)
+
+	g.board.SetPiece(move.FromRow, move.FromCol, pieceFrom)
+	g.board.SetPiece(move.ToRow, move.ToCol, pieceTo)
+
+	return !inCheck
+}
+
+func (g *Game) Checkmate(color Color) bool {
+	if !kingInCheck(g, color) {
+		return false
+	}
+
+	for fromRow := 0; fromRow < g.board.Rows(); fromRow++ {
+		for fromCol := 0; fromCol < g.board.Cols(); fromCol++ {
+			piece := g.board.PieceAt(fromRow, fromCol)
+			if piece == nil || piece.Color() != color {
+				continue
+			}
+			for toRow := 0; toRow < g.board.Rows(); toRow++ {
+				for toCol := 0; toCol < g.board.Cols(); toCol++ {
+					if fromRow == toRow && fromCol == toCol {
+						continue
+					}
+					testMove := &Move{FromRow: fromRow, FromCol: fromCol, ToRow: toRow, ToCol: toCol}
+					rules := RulesFor(piece)
+					if rules == nil || !rules.CanMove(testMove, g.board) {
+						continue
+					}
+					if g.LegalMove(testMove, color) {
+						return false
+					}
+				}
+			}
+		}
+	}
+	return true
+}
+
+func (g *Game) Stalemate(color Color) bool {
+	if kingInCheck(g, color) {
+		return false
+	}
+
+	for fromRow := 0; fromRow < g.board.Rows(); fromRow++ {
+		for fromCol := 0; fromCol < g.board.Cols(); fromCol++ {
+			piece := g.board.PieceAt(fromRow, fromCol)
+			if piece == nil || piece.Color() != color {
+				continue
+			}
+			rules := RulesFor(piece)
+			if rules == nil {
+				continue
+			}
+			for toRow := 0; toRow < g.board.Rows(); toRow++ {
+				for toCol := 0; toCol < g.board.Cols(); toCol++ {
+					if fromRow == toRow && fromCol == toCol {
+						continue
+					}
+					testMove := NewMove(fromRow, fromCol, toRow, toCol)
+					if rules.CanMove(testMove, g.board) && g.LegalMove(testMove, color) {
+						return false
+					}
+				}
+			}
+		}
+	}
+	return true
+}
+
+// ── Выполнение хода ───────────────────────────────────────
+
+func (g *Game) MakeMove(move *Move) error {
+	if move.FromRow < 0 || move.FromRow >= g.board.Rows() ||
+		move.FromCol < 0 || move.FromCol >= g.board.Cols() ||
+		move.ToRow < 0 || move.ToRow >= g.board.Rows() ||
+		move.ToCol < 0 || move.ToCol >= g.board.Cols() {
+		return errors.New("выход за границы доски")
+	}
+
+	piece := g.board.PieceAt(move.FromRow, move.FromCol)
+	if piece == nil {
+		return errors.New("на начальной клетке нет фигуры")
+	}
+	if piece.Color() != g.current {
+		return errors.New("сейчас ход другого игрока")
+	}
+
+	if piece.Type() == King && abs(move.ToCol-move.FromCol) == 2 {
+		move.MovedPiece = piece
+		if g.tryCastling(move, piece) {
+			// сначала переключаем цвет
+			if g.current == White {
+				g.current = Black
+			} else {
+				g.current = White
+			}
+			// теперь проверяем шах у противника
+			if kingInCheck(g, g.current) {
+				move.Check = true
+				if g.Checkmate(g.current) {
+					move.Mate = true
+				}
+			}
+			g.moves = append(g.moves, *move)
+			return nil
+		}
+		return errors.New("невозможно выполнить рокировку")
+	}
+
+	rules := RulesFor(piece)
+	if rules == nil {
+		return errors.New("для этой фигуры нет правил хода")
+	}
+
+	moveAllowed := rules.CanMove(move, g.board)
+
+	enPassant := false
+	if !moveAllowed && piece.Type() == Pawn {
+		enPassant = isEnPassant(move, piece, g)
+	}
+	if !moveAllowed && !enPassant {
+		return fmt.Errorf("%s так не ходит", piece.Type().Name())
+	}
+
+	// Пешка идёт на последний ряд — обязателен выбор фигуры превращения.
+	// Проверка идёт ПОСЛЕ проверки правил хода, чтобы при нелегальном ходе
+	// (например, e2→e8) вернулась ошибка «пешка так не ходит», а не про превращение.
+	if piece.Type() == Pawn {
+		lastRow := 0
+		if piece.Color() == White {
+			lastRow = g.board.Rows() - 1
+		}
+		if move.ToRow == lastRow {
+			switch move.Promotion {
+			case Knight, Bishop, Rook, Queen:
+			default:
+				return errors.New("требуется выбрать фигуру для превращения: конь, слон, ладья или ферзь")
+			}
+		}
+	}
+
+	enemy := g.board.PieceAt(move.ToRow, move.ToCol)
+	if !enPassant && enemy != nil && enemy.Color() == g.current {
+		return errors.New("нельзя бить свою фигуру")
+	}
+
+	oldPieceFrom := piece
+	oldPieceTo := enemy
+	enPassantPawn := (*Piece)(nil)
+	lastMove := (*Move)(nil)
+
+	g.board.SetPiece(move.ToRow, move.ToCol, piece)
+	g.board.SetPiece(move.FromRow, move.FromCol, nil)
+
+	if enPassant {
+		lastMove = &g.moves[len(g.moves)-1]
+		enPassantPawn = g.board.PieceAt(lastMove.ToRow, lastMove.ToCol)
+		g.board.SetPiece(lastMove.ToRow, lastMove.ToCol, nil)
+	}
+
+	if kingInCheck(g, piece.Color()) {
+		g.board.SetPiece(move.FromRow, move.FromCol, oldPieceFrom)
+		g.board.SetPiece(move.ToRow, move.ToCol, oldPieceTo)
+		if enPassant && enPassantPawn != nil {
+			g.board.SetPiece(lastMove.ToRow, lastMove.ToCol, enPassantPawn)
+		}
+		return errors.New("этот ход оставляет вашего короля под шахом")
+	}
+
+	switch {
+	case piece.Type() == King:
+		if piece.Color() == White {
+			g.whiteKingMoved = true
+		} else {
+			g.blackKingMoved = true
+		}
+	case piece.Type() == Rook:
+		if piece.Color() == White {
+			if move.FromCol == 0 {
+				g.whiteRookAMoved = true
+			} else if move.FromCol == g.board.Cols()-1 {
+				g.whiteRookHMoved = true
+			}
+		} else {
+			if move.FromCol == 0 {
+				g.blackRookAMoved = true
+			} else if move.FromCol == g.board.Cols()-1 {
+				g.blackRookHMoved = true
+			}
+		}
+	}
+
+	move.Captured = enemy
+	if enPassant {
+		move.Captured = enPassantPawn
+	}
+	move.MovedPiece = piece
+
+	if piece.Type() == Pawn {
+		lastRow := 0
+		if piece.Color() == White {
+			lastRow = g.board.Rows() - 1
+		}
+		if move.ToRow == lastRow && move.Promotion != 0 {
+			newPiece := NewPiece(piece.Color(), move.Promotion)
+			g.board.SetPiece(move.ToRow, move.ToCol, newPiece)
+		}
+	}
+
+	if g.current == White {
+		g.current = Black
+	} else {
+		g.current = White
+	}
+
+	if kingInCheck(g, g.current) {
+		move.Check = true
+		if g.Checkmate(g.current) {
+			move.Mate = true
+		}
+	}
+
+	g.moves = append(g.moves, *move)
+
+	return nil
+}
+
+// ── Специальные ходы ──────────────────────────────────────
+
+func (g *Game) tryCastling(move *Move, king *Piece) bool {
+	color := king.Color()
+	row := move.FromRow
+	fromCol := move.FromCol
+	toCol := move.ToCol
+
+	// Вычисляем, в какую сторону идёт король
+	direction := 1
+	if toCol < fromCol {
+		direction = -1
+	}
+	if abs(toCol-fromCol) != 2 {
+		return false
+	}
+
+	rookCol := 0
+	rookColAfter := 0
+	if direction == 1 {
+		rookCol = g.board.Cols() - 1 // ладья в последнем столбце (h1/h8)
+		rookColAfter = toCol - 1     // встанет левее короля (f1/f8)
+	} else {
+		rookCol = 0              // ладья в первом столбце (a1/a8)
+		rookColAfter = toCol + 1 // встанет правее короля (d1/d8)
+	}
+
+	// защита от выхода за границы (маленькие доски)
+	if toCol < 0 || toCol >= g.board.Cols() ||
+		rookColAfter < 0 || rookColAfter >= g.board.Cols() {
+		return false
+	}
+
+	// проверяем, двигались ли король и ладья
+	kingMoved := false
+	rookMoved := false
+	switch {
+	case color == White && direction == 1:
+		kingMoved = g.whiteKingMoved
+		rookMoved = g.whiteRookHMoved
+	case color == White && direction == -1:
+		kingMoved = g.whiteKingMoved
+		rookMoved = g.whiteRookAMoved
+	case color == Black && direction == 1:
+		kingMoved = g.blackKingMoved
+		rookMoved = g.blackRookHMoved
+	case color == Black && direction == -1:
+		kingMoved = g.blackKingMoved
+		rookMoved = g.blackRookAMoved
+	}
+	if kingMoved || rookMoved {
+		return false
+	}
+
+	// на пути не должно быть фигур
+	step := 1
+	if direction == -1 {
+		step = -1
+	}
+	for col := fromCol + step; col != rookCol; col += step {
+		if g.board.PieceAt(row, col) != nil {
+			return false
+		}
+	}
+
+	// стартовое поле не под шахом
+	if kingInCheck(g, color) {
+		return false
+	}
+
+	// промежуточное поле не под боем
+	intermediateCol := fromCol + step
+	tempMove := &Move{FromRow: row, FromCol: fromCol, ToRow: row, ToCol: intermediateCol}
+	if !g.LegalMove(tempMove, color) {
+		return false
+	}
+
+	// Конечное поле не под боем (иначе король окажется под шахом после рокировки)
+	finalMove := &Move{FromRow: row, FromCol: fromCol, ToRow: row, ToCol: toCol}
+	if !g.LegalMove(finalMove, color) {
+		return false
+	}
+
+	// проверка наличия ладьи на клетке
+	rook := g.board.PieceAt(row, rookCol)
+	if rook == nil || rook.Type() != Rook || rook.Color() != color {
+		return false
+	}
+
+	// выполнение рокировки
+	g.board.SetPiece(row, fromCol, nil)
+	g.board.SetPiece(row, rookCol, nil)
+	g.board.SetPiece(row, toCol, king)
+	g.board.SetPiece(row, rookColAfter, rook)
+
+	// установка флагов
+	switch color {
+	case White:
+		g.whiteKingMoved = true
+		if direction == 1 {
+			g.whiteRookHMoved = true
+		} else {
+			g.whiteRookAMoved = true
+		}
+	case Black:
+		g.blackKingMoved = true
+		if direction == 1 {
+			g.blackRookHMoved = true
+		} else {
+			g.blackRookAMoved = true
+		}
+	}
+	return true
+}
+
+func isEnPassant(move *Move, piece *Piece, game *Game) bool {
+	if len(game.moves) == 0 {
+		return false
+	}
+	last := &game.moves[len(game.moves)-1]
+	enemy := game.board.PieceAt(last.ToRow, last.ToCol)
+	if enemy == nil || enemy.Type() != Pawn {
+		return false
+	}
+	if abs(last.ToRow-last.FromRow) != 2 {
+		return false
+	}
+	if abs(last.ToCol-move.FromCol) != 1 {
+		return false
+	}
+	shift := 1
+	if piece.Color() == Black {
+		shift = -1
+	}
+	return move.ToRow == last.ToRow+shift && move.ToCol == last.ToCol
+}
+
+func (g Game) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		ID      int `json:"id"`
+		Player1 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок1"`
+		Player2 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок2"`
+		Board   *Board `json:"доска"`
+		Current Color  `json:"текущий"`
+		Moves   []Move `json:"ходы"`
+
+		WhiteKingMoved  bool `json:"белыйКорольДвигался,omitempty"`
+		BlackKingMoved  bool `json:"чёрныйКорольДвигался,omitempty"`
+		WhiteRookAMoved bool `json:"белаяЛадьяAДвигалась,omitempty"`
+		WhiteRookHMoved bool `json:"белаяЛадьяHДвигалась,omitempty"`
+		BlackRookAMoved bool `json:"чёрнаяЛадьяAДвигалась,omitempty"`
+		BlackRookHMoved bool `json:"чёрнаяЛадьяHДвигалась,omitempty"`
+	}{
+		ID: g.id,
+		Player1: struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		}{ID: g.player1.ID(), Name: g.player1.Name(), Color: g.player1Color},
+		Player2: struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		}{ID: g.player2.ID(), Name: g.player2.Name(), Color: g.player2Color},
+		Board:   g.board,
+		Current: g.current,
+		Moves:   g.moves,
+
+		WhiteKingMoved:  g.whiteKingMoved,
+		BlackKingMoved:  g.blackKingMoved,
+		WhiteRookAMoved: g.whiteRookAMoved,
+		WhiteRookHMoved: g.whiteRookHMoved,
+		BlackRookAMoved: g.blackRookAMoved,
+		BlackRookHMoved: g.blackRookHMoved,
+	})
+}
+
+func (g *Game) UnmarshalJSON(data []byte) error {
+	var payload struct {
+		ID      int `json:"id"`
+		Player1 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок1"`
+		Player2 struct {
+			ID    int    `json:"id"`
+			Name  string `json:"имя"`
+			Color Color  `json:"цвет"`
+		} `json:"игрок2"`
+		Board   *Board `json:"доска"`
+		Current Color  `json:"текущий"`
+		Moves   []Move `json:"ходы"`
+
+		WhiteKingMoved  bool `json:"белыйКорольДвигался,omitempty"`
+		BlackKingMoved  bool `json:"чёрныйКорольДвигался,omitempty"`
+		WhiteRookAMoved bool `json:"белаяЛадьяAДвигалась,omitempty"`
+		WhiteRookHMoved bool `json:"белаяЛадьяHДвигалась,omitempty"`
+		BlackRookAMoved bool `json:"чёрнаяЛадьяAДвигалась,omitempty"`
+		BlackRookHMoved bool `json:"чёрнаяЛадьяHДвигалась,omitempty"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+
+	g.id = payload.ID
+	g.player1 = *NewPlayer(payload.Player1.Name)
+	g.player1.SetID(payload.Player1.ID)
+	g.player1Color = payload.Player1.Color
+	g.player2 = *NewPlayer(payload.Player2.Name)
+	g.player2.SetID(payload.Player2.ID)
+	g.player2Color = payload.Player2.Color
+	g.board = payload.Board
+	g.current = payload.Current
+	g.moves = payload.Moves
+
+	g.whiteKingMoved = payload.WhiteKingMoved
+	g.blackKingMoved = payload.BlackKingMoved
+	g.whiteRookAMoved = payload.WhiteRookAMoved
+	g.whiteRookHMoved = payload.WhiteRookHMoved
+	g.blackRookAMoved = payload.BlackRookAMoved
+	g.blackRookHMoved = payload.BlackRookHMoved
+
+	return nil
+}
