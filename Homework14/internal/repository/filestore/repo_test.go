@@ -1,4 +1,4 @@
-package repository_test
+package filestore_test
 
 import (
 	"os"
@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mod.go/internal/model"
-	"mod.go/internal/repository"
+	"mod.go/internal/repository/filestore"
 )
 
-func newTestStorage(t *testing.T) *repository.Storage {
+func newTestStorage(t *testing.T) *filestore.Storage {
 	t.Helper()
-	s := repository.NewStorage(t.TempDir())
+	s := filestore.NewStorage(t.TempDir())
 	require.NoError(t, s.LoadFromFiles())
 	return s
 }
@@ -186,7 +186,7 @@ func TestStorage_SaveAndLoad(t *testing.T) {
 	dir := t.TempDir()
 
 	// первое хранилище - создаём данные
-	s1 := repository.NewStorage(dir)
+	s1 := filestore.NewStorage(dir)
 	require.NoError(t, s1.LoadFromFiles())
 
 	p := s1.CreatePlayer(*model.NewPlayer("Владимир Владимирович"))
@@ -202,7 +202,7 @@ func TestStorage_SaveAndLoad(t *testing.T) {
 	require.NoError(t, s1.SaveAll())
 
 	// второе хранилище - читаем те же данные
-	s2 := repository.NewStorage(dir)
+	s2 := filestore.NewStorage(dir)
 	require.NoError(t, s2.LoadFromFiles())
 
 	// игрок на месте
@@ -360,7 +360,7 @@ func TestStorage_CleanOrphanMoves(t *testing.T) {
 	dir := t.TempDir()
 
 	// Шаг 1: создаём игру с ходом, сохраняем на диск
-	s1 := repository.NewStorage(dir)
+	s1 := filestore.NewStorage(dir)
 	require.NoError(t, s1.LoadFromFiles())
 
 	game := model.NewGame(*model.NewPlayer("A"), *model.NewPlayer("B"), 8, 8)
@@ -377,7 +377,7 @@ func TestStorage_CleanOrphanMoves(t *testing.T) {
 	require.NoError(t, os.WriteFile(gamesPath, []byte("[]"), 0644))
 
 	// Шаг 3: новое хранилище при загрузке должно почистить orphans
-	s2 := repository.NewStorage(dir)
+	s2 := filestore.NewStorage(dir)
 	require.NoError(t, s2.LoadFromFiles())
 
 	// ходы должны быть очищены

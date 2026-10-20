@@ -1,7 +1,6 @@
-# Homework13: Шахматный REST API + gRPC
+# Homework14: Шахматный REST API + gRPC (MongoDB + Redis)
 
-REST API + gRPC для игры в шахматы, консольные клиенты, Swagger-документация,
-юнит-тесты бизнес-логики и CI.
+REST API + gRPC для игры в шахматы, консольные клиенты, Swagger-документация, юнит-тесты бизнес-логики, базы данных NoSQL и CI.
 
 ## Что реализовано
 
@@ -11,21 +10,24 @@ REST API + gRPC для игры в шахматы, консольные клие
 - JWT-авторизация (логин/пароль из `.env`)
 - Защита mutation-эндпоинтов (POST/PUT/DELETE) через Bearer-токен
 - Swagger UI с описанием всех эндпоинтов
-- Веб-страницы наблюдателя (`/` и `/game?id=N`)
-- gRPC-сервер и клиент с тем же функционалом
-- **Юнит-тесты бизнес-логики** (black box)
-- **CI**: сборка и прогон тестов на каждый push/PR
+- Веб-страницы наблюдателя 
+- Юнит-тесты бизнес-логики (black box)
+- CI: сборка и прогон тестов на каждый push/PR
+- **Хранение данных в MongoDB** (вместо JSON-файлов)
+- **Логирование изменений в Redis** с временем жизни (TTL)
+- **Docker Compose** для запуска MongoDB и Redis
+- **Скрипт миграции** старых данных из JSON в MongoDB
 
 ## Требования
 
 - Go 1.26+
+- **Docker Desktop** (или Docker + Docker Compose)
 - (опционально) `swag` CLI — если нужно перегенерировать Swagger
-- (опционально) `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc` — если нужно
-  перегенерировать gRPC-код
+- (опционально) `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc` — если нужно перегенерировать gRPC-код
 
 ## Настройка
 
-Все команды выполняются из папки `Homework13` (там, где лежит `go.mod`).
+Все команды выполняются из папки `Homework14` (там, где лежит `go.mod`).
 
 1. Скопируйте `.env.example` в `.env`:
 
@@ -37,21 +39,38 @@ REST API + gRPC для игры в шахматы, консольные клие
        PASSWORD=<ваш пароль>
        JWT_SECRET=<случайная строка минимум 32 символа>
        JWT_TTL=1h
-
-   Эти данные нужны для входа в API. Регистрация не предусмотрена —
-   логин/пароль хранятся только в `.env` на сервере.
+       
+       # Настройки баз данных
+       MONGO_URI=mongodb://localhost:27017
+       MONGO_DB=chess
+       REDIS_ADDR=localhost:6379
+       REDIS_TTL=24h
 
 Файл `.env` добавлен в `.gitignore` и не коммитится.
 
+## Запуск баз данных (Docker)
+
+Перед запуском серверов необходимо поднять MongoDB и Redis. В папке `Homework14` выполните:
+
+    docker compose up -d
+
+*(Флаг `-d` запускает контейнеры в фоновом режиме).*
+
+## Миграция данных (опционально)
+
+Если у вас есть старые данные в JSON-файлах (папка `data`) от предыдущих версий проекта, вы можете перенести их в MongoDB. Скрипт сохранит все старые ID.
+
+    go run ./cmd/migrate
+
 ## Запуск REST
 
-Из папки `Homework13`:
+Из папки `Homework14`:
 
 Сервер:
 
     go run ./cmd/rest-server
 
-Клиент (в отдельном терминале, тоже из `Homework13`):
+Клиент (в отдельном терминале, тоже из `Homework14`):
 
     go run ./cmd/rest-client
 
@@ -73,21 +92,14 @@ REST API + gRPC для игры в шахматы, консольные клие
         --go-grpc_out=. --go-grpc_opt=paths=source_relative \
         internal/proto/chess.proto
 
-Требуются установленные `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc`.
-
 ### Запуск gRPC-сервера
 
-Из папки `Homework13`:
+Из папки `Homework14`:
 
     go run ./cmd/grpc-server
 
 Сервер слушает порт 50051. Можно запускать одновременно с REST-сервером
-(порт 8080).
-
-> ⚠️ **Важно:** хранилище — общий JSON-файл без межпроцессной
-> синхронизации. Не запускайте REST- и gRPC-серверы одновременно,
-> если планируете записывать данные — изменения одного процесса
-> могут быть потеряны при сохранении другим.
+(порт 8080). *Благодаря MongoDB параллельная работа серверов безопасна.*
 
 ### Запуск gRPC-клиента
 
@@ -109,15 +121,11 @@ REST API + gRPC для игры в шахматы, консольные клие
 
     go test ./...
 
-### Запуск с подробным выводом
-
-    go test -v ./...
-
 ### Запуск тестов конкретного пакета
 
     go test ./internal/model/
     go test ./internal/service/
-    go test ./internal/repository/
+    go test ./internal/repository/filestore/
     go test ./internal/config/
 
 ### Без кеша (реальный прогон)
@@ -126,41 +134,20 @@ REST API + gRPC для игры в шахматы, консольные клие
 
 ## Покрытие
 
-### Проценты по каждому пакету
-
-    go test -cover ./...
-
-### Подробный отчёт по функциям
-
-    go test -coverprofile coverage.out ./...
-    go tool cover -func coverage.out
-
-### HTML-отчёт (в браузере)
-
-    go test -coverprofile coverage.out ./...
-    go tool cover -html coverage.out
-
 ### Текущее покрытие бизнес-логики
 
 | Пакет        | Покрытие |
 | ------------ | -------- |
 | `model`      | ~80%     |
 | `service`    | ~92%     |
-| `repository` | ~92%     |
+| `filestore`  | ~92%     |
 | `config`     | 100%     |
 | `auth`       | ~88%     |
 
-**Что покрыто осознанно:** бизнес-логика, JSON-сериализация, HTTP-API
-через сервисы, работа с хранилищем, валидация конфигурации.
-
 **Что не покрыто осознанно:**
-- **Рендер** (`internal/render/tui`, HTML-страницы) — визуальная часть,
-  проверяется вручную
-- **Транспортный слой** (`internal/api/rest`, `internal/api/grpc`) —
-  тестируется косвенно через сервисы
-- **DTO и сгенерированный код** (`internal/dto`, `internal/proto`, `docs/`) —
-  только структуры или автогенерация
-- **Точки входа** (`cmd/*`) — `main`-функции, запускаются вручную
+- **Слой MongoDB** (`internal/repository/mongodb`) — требует запущенного Docker-контейнера (интеграционные тесты).
+- **Рендер** (`internal/render/tui`, HTML-страницы) — визуальная часть.
+- **Транспортный слой** (`internal/api/rest`, `internal/api/grpc`) — тестируется косвенно.
 
 ## CI
 
@@ -174,52 +161,6 @@ REST API + gRPC для игры в шахматы, консольные клие
 3. Скачивает зависимости (`go mod download`)
 4. Собирает проект (`go build ./...`)
 5. Запускает тесты (`go test ./... -count=1`)
-
-Статус CI виден во вкладке **Actions** репозитория и в статусе PR.
-
-## Проверка REST через Swagger
-
-1. Откройте Swagger UI в браузере.
-2. Выполните `POST /api/login` — в теле передайте логин и пароль из `.env`:
-
-       {
-         "логин": "<ваш LOGIN>",
-         "пароль": "<ваш PASSWORD>"
-       }
-
-3. В ответе придёт `{"токен": "eyJ..."}`. Скопируйте токен.
-4. Нажмите кнопку **Authorize** (справа сверху).
-5. В поле `Value` вставьте: `Bearer <ваш токен>`.
-6. Нажмите Authorize → Close.
-
-Теперь защищённые эндпоинты работают — Swagger автоматически
-добавляет заголовок `Authorization`.
-
-GET-эндпоинты открыты без авторизации — для наблюдателей.
-
-## Проверка REST через клиент
-
-При старте клиент попросит логин и пароль. Введите те же данные, что в `.env`.
-Клиент сам получит токен и будет прикладывать его ко всем изменяющим
-запросам.
-
-Дальше — обычное меню: создать игру, подключиться к существующей,
-симуляции.
-
-### Команды в игровой сессии
-
-- `автоход N` — сделать N автоматических ходов
-- `симуляция N` — запустить N фоновых партий
-- `стоп` — остановить симуляции
-- `help` — список команд
-- `выход` / `exit` — выйти из игры
-
-## Перегенерация Swagger (опционально)
-
-Если меняли комментарии хендлеров в `internal/api/rest/handlers.go`:
-
-    swag init -g cmd/rest-server/main.go -o docs \
-        --parseDependency --parseInternal
 
 ## Структура проекта
 
@@ -238,32 +179,19 @@ GET-эндпоинты открыты без авторизации — для �
 - `internal/api/grpc`        — реализация gRPC-сервисов
 - `internal/proto`           — `.proto` схема и сгенерированный Go-код
 
+**Базы данных и утилиты:**
+
+- `cmd/migrate`              — скрипт миграции данных из JSON в MongoDB
+- `docker-compose.yml`       — конфигурация MongoDB и Redis
+- `internal/repository/filestore` — старое JSON-хранилище (для миграции)
+- `internal/repository/mongodb`   — новое хранилище на MongoDB и Redis
+
 **Общее:**
 
 - `internal/auth`            — генерация и проверка JWT
 - `internal/config`          — загрузка `.env` в структуру Config
 - `internal/model`           — доменные модели, правила шахмат
-- `internal/repository`      — слой доступа к данным (JSON-хранилище)
 - `internal/service`         — бизнес-логика: Player, Game, Move
 - `internal/dto`             — DTO для REST API
 - `internal/render/tui`      — рендер доски для терминала
 - `docs/`                    — сгенерированный Swagger
-
-
-### Данные и конфигурация (в корне `Homework13/`)
-
-- `.env`                     — ваши секреты (не коммитится)
-- `.env.example`             — шаблон для `.env`
-- `data/games.json`          — игры
-- `data/moves.json`          — ходы
-- `data/players.json`        — игроки
-- `data/counters.json`       — счётчики ID
-- `.github/workflows/ci.yml` — CI-пайплайн (в корне репозитория)
-
-### Тесты
-
-Тесты лежат рядом с кодом (`*_test.go`). Помощники:
-
-- `internal/model/testhelpers_test.go` — `emptyBoard`
-- `internal/service/testhelpers_test.go` — `createTestGame`, `emptyServiceBoard`
-- `internal/service/mock_test.go` — in-memory мок `Storage`

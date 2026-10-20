@@ -11,13 +11,12 @@ import (
 	"mod.go/internal/config"
 	"mod.go/internal/dto"
 	"mod.go/internal/model"
-	"mod.go/internal/repository"
 	"mod.go/internal/service"
 )
 
 // Handlers - структура со всеми зависимостями RTST-хэндлеров
 type Handlers struct {
-	storage       *repository.Storage
+	storage       service.Storage
 	cfg           *config.Config
 	playerService *service.PlayerService
 	gameService   *service.GameService
@@ -25,7 +24,7 @@ type Handlers struct {
 }
 
 func New(
-	storage *repository.Storage,
+	storage service.Storage,
 	cfg *config.Config,
 	playerService *service.PlayerService,
 	gameService *service.GameService,

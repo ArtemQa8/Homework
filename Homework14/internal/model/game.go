@@ -68,6 +68,9 @@ func (g *Game) Moves() []Move {
 	return result
 }
 
+func (g *Game) SetCurrentColor(c Color) { g.current = c }
+func (g *Game) SetMoves(moves []Move)   { g.moves = moves }
+
 func (g *Game) InCheck(color Color) bool {
 	return kingInCheck(g, color)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -11,15 +12,21 @@ import (
 	"google.golang.org/grpc"
 
 	grpchandler "mod.go/internal/api/grpc"
+	"mod.go/internal/config"
 	pb "mod.go/internal/proto"
-	"mod.go/internal/repository"
+	"mod.go/internal/repository/mongodb"
 	"mod.go/internal/service"
 )
 
 func main() {
-	storage := repository.NewStorage("data")
-	if err := storage.LoadFromFiles(); err != nil {
-		log.Fatalf("Ошибка загрузки данных: %v", err)
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Ошибка загрузки конфига: %v", err)
+	}
+
+	storage, err := mongodb.NewMongoStorage(cfg)
+	if err != nil {
+		log.Fatalf("Ошибка подключения к БД: %v", err)
 	}
 
 	lis, err := net.Listen("tcp", ":50051")
@@ -51,9 +58,9 @@ func main() {
 	fmt.Println("\nПолучен сигнал остановки, завершаем работу...")
 	grpcServer.GracefulStop()
 
-	if err := storage.SaveAll(); err != nil {
-		log.Printf("Ошибка сохранения данных: %v", err)
+	if err := storage.Close(context.Background()); err != nil {
+		log.Printf("Ошибка при закрытии БД: %v", err)
 	}
 
-	fmt.Println("gRPC-сервер остановлен, данные сохранены.")
+	fmt.Println("gRPC-сервер остановлен")
 }

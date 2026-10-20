@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"mod.go/internal/api/rest"
 	"mod.go/internal/config"
-	"mod.go/internal/repository"
+	"mod.go/internal/repository/mongodb"
 	"mod.go/internal/service"
 )
 
@@ -37,9 +37,9 @@ func main() {
 		log.Fatalf("Ошибка загрузки конфига: %v", err)
 	}
 
-	storage := repository.NewStorage("data")
-	if err := storage.LoadFromFiles(); err != nil {
-		log.Fatalf("Ошибка загрузки данных: %v", err)
+	storage, err := mongodb.NewMongoStorage(cfg)
+	if err != nil {
+		log.Fatalf("ошибка подключения к БД: %v", err)
 	}
 
 	playerService := service.NewPlayerService(storage)
@@ -117,8 +117,8 @@ func main() {
 		log.Printf("Ошибка при graceful shutdown: %v", err)
 	}
 
-	if err := storage.SaveAll(); err != nil {
-		log.Printf("Ошибка сохранения данных: %v", err)
+	if err := storage.Close(context.Background()); err != nil {
+		log.Printf("Ошибка при закрытии БД: %v", err)
 	}
 
 	fmt.Println("Сервер остановлен, данные сохранены.")

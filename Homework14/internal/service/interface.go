@@ -2,7 +2,7 @@ package service
 
 import (
 	"mod.go/internal/model"
-	"mod.go/internal/repository"
+	"mod.go/internal/repository/filestore"
 )
 
 type Storage interface {
@@ -29,4 +29,4 @@ type Storage interface {
 	DeleteMove(id int) error
 }
 
-var _ Storage = (*repository.Storage)(nil)
+var _ Storage = (*filestore.Storage)(nil)
