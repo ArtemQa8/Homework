@@ -10,7 +10,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Homework13
+        working-directory: Homework14 
 
     steps:
       - name: Checkout code
@@ -19,8 +19,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
-          cache-dependency-path: Homework13/go.sum
+          go-version: '1.27' 
+          cache-dependency-path: Homework14/go.sum 
 
       - name: Download dependencies
         run: go mod download
