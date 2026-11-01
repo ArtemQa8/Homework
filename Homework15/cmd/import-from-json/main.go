@@ -7,7 +7,7 @@ import (
 
 	"mod.go/internal/config"
 	"mod.go/internal/repository/filestore"
-	"mod.go/internal/repository/mongodb"
+	"mod.go/internal/repository/postgres"
 )
 
 func main() {
@@ -24,10 +24,10 @@ func main() {
 		log.Fatalf("Ошибка чтения JSON: %v", err)
 	}
 
-	// Подключаемся к Mongo
-	db, err := mongodb.NewMongoStorage(cfg)
+	// Подключаемся к Postgres
+	db, err := postgres.NewPostgresStorage(cfg)
 	if err != nil {
-		log.Fatalf("Ошибка подключения к MongoDB: %v", err)
+		log.Fatalf("Ошибка подключения к PostgreSQL: %v", err)
 	}
 	defer db.Close(context.Background())
 

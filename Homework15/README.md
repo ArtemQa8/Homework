@@ -1,6 +1,6 @@
-# Homework14: Шахматный REST API + gRPC (MongoDB + Redis)
+# Homework15: Шахматный REST API + gRPC (PostgreSQL)
 
-REST API + gRPC для игры в шахматы, консольные клиенты, Swagger-документация, юнит-тесты бизнес-логики, базы данных NoSQL и CI.
+REST API + gRPC для игры в шахматы, консольные клиенты, Swagger-документация, юнит-тесты бизнес-логики, реляционная БД и CI.
 
 ## Что реализовано
 
@@ -10,13 +10,14 @@ REST API + gRPC для игры в шахматы, консольные клие
 - JWT-авторизация (логин/пароль из `.env`)
 - Защита mutation-эндпоинтов (POST/PUT/DELETE) через Bearer-токен
 - Swagger UI с описанием всех эндпоинтов
-- Веб-страницы наблюдателя 
+- Веб-страницы наблюдателя
 - Юнит-тесты бизнес-логики (black box)
 - CI: сборка и прогон тестов на каждый push/PR
-- **Хранение данных в MongoDB** (вместо JSON-файлов)
-- **Логирование изменений в Redis** с временем жизни (TTL)
-- **Docker Compose** для запуска MongoDB и Redis
-- **Скрипт миграции** старых данных из JSON в MongoDB
+- **Хранение данных в PostgreSQL** (основная БД вместо MongoDB)
+- **Миграции схемы через `goose`**
+- **Типобезопасная генерация запросов через `sqlc`**
+- **Транзакции** для атомарных операций (создание игры, выполнение хода)
+- **Скрипты миграции** JSON -> PostgreSQL и экспорта PostgreSQL -> JSON
 
 ## Требования
 
@@ -24,10 +25,11 @@ REST API + gRPC для игры в шахматы, консольные клие
 - **Docker Desktop** (или Docker + Docker Compose)
 - (опционально) `swag` CLI — если нужно перегенерировать Swagger
 - (опционально) `protoc`, `protoc-gen-go`, `protoc-gen-go-grpc` — если нужно перегенерировать gRPC-код
+- (опционально) `goose` и `sqlc` CLI — если нужно менять миграции или запросы
 
 ## Настройка
 
-Все команды выполняются из папки `Homework14` (там, где лежит `go.mod`).
+Все команды выполняются из папки `Homework15` (там, где лежит `go.mod`).
 
 1. Скопируйте `.env.example` в `.env`:
 
@@ -40,37 +42,58 @@ REST API + gRPC для игры в шахматы, консольные клие
        JWT_SECRET=<случайная строка минимум 32 символа>
        JWT_TTL=1h
        
-       # Настройки баз данных
-       MONGO_URI=mongodb://localhost:27017
-       MONGO_DB=chess
-       REDIS_ADDR=localhost:6379
-       REDIS_TTL=24h
+       # Настройки PostgreSQL (основная БД)
+       PG_DSN=postgres://chess:chess@localhost:5432/chess?sslmode=disable
 
 Файл `.env` добавлен в `.gitignore` и не коммитится.
 
 ## Запуск баз данных (Docker)
 
-Перед запуском серверов необходимо поднять MongoDB и Redis. В папке `Homework14` выполните:
+Перед запуском серверов необходимо поднять PostgreSQL. В папке `Homework15` выполните:
 
     docker compose up -d
 
-*(Флаг `-d` запускает контейнеры в фоновом режиме).*
+*(В `docker-compose.yml` также присутствуют сервисы MongoDB и Redis — они оставлены для обратной совместимости с HW14 и в HW15 не используются).*
 
-## Миграция данных (опционально)
+## Миграции схемы
 
-Если у вас есть старые данные в JSON-файлах (папка `data`) от предыдущих версий проекта, вы можете перенести их в MongoDB. Скрипт сохранит все старые ID.
+Схема БД описана в `db/migrations/`. Применить миграции:
 
-    go run ./cmd/migrate
+    goose -dir db/migrations postgres "postgres://chess:chess@localhost:5432/chess?sslmode=disable" up
+
+Или через `go run`:
+
+    go run github.com/pressly/goose/v3/cmd/goose@latest -dir db/migrations postgres "postgres://chess:chess@localhost:5432/chess?sslmode=disable" up
+
+## Генерация кода из SQL (sqlc)
+
+Запросы лежат в `internal/repository/postgres/queries/`. После их изменения перегенерируйте Go-код:
+
+    sqlc generate
+
+## Миграция данных (JSON -> PostgreSQL)
+
+Если у вас есть старые данные в JSON-файлах (папка `data`) от предыдущих версий проекта, вы можете перенести их в PostgreSQL. Скрипт сохранит все старые ID.
+
+    go run ./cmd/import-from-json
+
+## Экспорт данных (PostgreSQL -> JSON)
+
+Для создания бэкапа в виде JSON-файлов:
+
+    go run ./cmd/export-to-json
+
+Данные сохраняются в папку `export_data/`.
 
 ## Запуск REST
 
-Из папки `Homework14`:
+Из папки `Homework15`:
 
 Сервер:
 
     go run ./cmd/rest-server
 
-Клиент (в отдельном терминале, тоже из `Homework14`):
+Клиент (в отдельном терминале, тоже из `Homework15`):
 
     go run ./cmd/rest-client
 
@@ -94,12 +117,12 @@ REST API + gRPC для игры в шахматы, консольные клие
 
 ### Запуск gRPC-сервера
 
-Из папки `Homework14`:
+Из папки `Homework15`:
 
     go run ./cmd/grpc-server
 
 Сервер слушает порт 50051. Можно запускать одновременно с REST-сервером
-(порт 8080). *Благодаря MongoDB параллельная работа серверов безопасна.*
+(порт 8080). *Благодаря PostgreSQL параллельная работа серверов безопасна.*
 
 ### Запуск gRPC-клиента
 
@@ -121,13 +144,6 @@ REST API + gRPC для игры в шахматы, консольные клие
 
     go test ./...
 
-### Запуск тестов конкретного пакета
-
-    go test ./internal/model/
-    go test ./internal/service/
-    go test ./internal/repository/filestore/
-    go test ./internal/config/
-
 ### Без кеша (реальный прогон)
 
     go test ./... -count=1
@@ -145,7 +161,8 @@ REST API + gRPC для игры в шахматы, консольные клие
 | `auth`       | ~88%     |
 
 **Что не покрыто осознанно:**
-- **Слой MongoDB** (`internal/repository/mongodb`) — требует запущенного Docker-контейнера (интеграционные тесты).
+- **Слой PostgreSQL** (`internal/repository/postgres`) — требует запущенного Docker-контейнера (интеграционные тесты).
+- **Слой MongoDB** (`internal/repository/mongodb`) — оставлен от предыдущей версии проекта (HW14), в HW15 не используется.
 - **Рендер** (`internal/render/tui`, HTML-страницы) — визуальная часть.
 - **Транспортный слой** (`internal/api/rest`, `internal/api/grpc`) — тестируется косвенно.
 
@@ -181,10 +198,15 @@ REST API + gRPC для игры в шахматы, консольные клие
 
 **Базы данных и утилиты:**
 
-- `cmd/migrate`              — скрипт миграции данных из JSON в MongoDB
-- `docker-compose.yml`       — конфигурация MongoDB и Redis
+- `cmd/import-from-json`     — скрипт миграции данных из JSON в PostgreSQL
+- `cmd/export-to-json`       — скрипт экспорта данных из PostgreSQL в JSON
+- `db/migrations`            — SQL-миграции для goose
+- `docker-compose.yml`       — конфигурация PostgreSQL (MongoDB и Redis оставлены для совместимости)
 - `internal/repository/filestore` — старое JSON-хранилище (для миграции)
-- `internal/repository/mongodb`   — новое хранилище на MongoDB и Redis
+- `internal/repository/mongodb`   — альтернативное хранилище (HW14, не используется)
+- `internal/repository/postgres`  — основное хранилище на PostgreSQL
+- `internal/repository/postgres/queries` — SQL-запросы для sqlc
+- `internal/repository/postgres/sqlc`    — сгенерированный код
 
 **Общее:**
 

@@ -272,3 +272,12 @@ func (s *MongoStorage) resolvePlayer(ctx context.Context, player model.Player) (
 
 	return s.CreatePlayer(player), nil
 }
+
+func (s *MongoStorage) MakeMove(ctx context.Context, gameID int, move *model.Move, game *model.Game) error {
+	savedMove, err := s.CreateMove(*move)
+	if err != nil {
+		return err
+	}
+	game.SetLastMoveID(savedMove.ID())
+	return s.OverwriteGame(gameID, *game)
+}

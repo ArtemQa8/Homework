@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"mod.go/internal/api/rest"
 	"mod.go/internal/config"
-	"mod.go/internal/repository/mongodb"
+	"mod.go/internal/repository/postgres"
 	"mod.go/internal/service"
 )
 
@@ -37,7 +37,7 @@ func main() {
 		log.Fatalf("Ошибка загрузки конфига: %v", err)
 	}
 
-	storage, err := mongodb.NewMongoStorage(cfg)
+	storage, err := postgres.NewPostgresStorage(cfg)
 	if err != nil {
 		log.Fatalf("ошибка подключения к БД: %v", err)
 	}

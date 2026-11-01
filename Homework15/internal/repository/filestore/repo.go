@@ -1,6 +1,7 @@
 package filestore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -545,4 +546,13 @@ func (s *Storage) DeleteMove(id int) error {
 		}
 	}
 	return fmt.Errorf("Ход с ID %d не найден", id)
+}
+
+func (s *Storage) MakeMove(ctx context.Context, gameID int, move *model.Move, game *model.Game) error {
+	savedMove, err := s.CreateMove(*move)
+	if err != nil {
+		return err
+	}
+	game.SetLastMoveID(savedMove.ID())
+	return s.OverwriteGame(gameID, *game)
 }

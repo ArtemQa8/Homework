@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"fmt"
 
 	"mod.go/internal/model"
@@ -186,4 +187,13 @@ func (m *mockStorage) DeleteMove(id int) error {
 		}
 	}
 	return fmt.Errorf("Ход с ID %d не найден", id)
+}
+
+func (m *mockStorage) MakeMove(ctx context.Context, gameID int, move *model.Move, game *model.Game) error {
+	savedMove, err := m.CreateMove(*move)
+	if err != nil {
+		return err
+	}
+	game.SetLastMoveID(savedMove.ID())
+	return m.OverwriteGame(gameID, *game)
 }

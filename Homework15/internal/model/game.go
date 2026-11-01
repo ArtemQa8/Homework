@@ -82,6 +82,20 @@ func (g *Game) SetLastMoveID(id int) {
 	g.moves[len(g.moves)-1].id = id
 }
 
+func (g *Game) WhiteKingMoved() bool  { return g.whiteKingMoved }
+func (g *Game) BlackKingMoved() bool  { return g.blackKingMoved }
+func (g *Game) WhiteRookAMoved() bool { return g.whiteRookAMoved }
+func (g *Game) WhiteRookHMoved() bool { return g.whiteRookHMoved }
+func (g *Game) BlackRookAMoved() bool { return g.blackRookAMoved }
+func (g *Game) BlackRookHMoved() bool { return g.blackRookHMoved }
+
+func (g *Game) SetWhiteKingMoved(v bool)  { g.whiteKingMoved = v }
+func (g *Game) SetBlackKingMoved(v bool)  { g.blackKingMoved = v }
+func (g *Game) SetWhiteRookAMoved(v bool) { g.whiteRookAMoved = v }
+func (g *Game) SetWhiteRookHMoved(v bool) { g.whiteRookHMoved = v }
+func (g *Game) SetBlackRookAMoved(v bool) { g.blackRookAMoved = v }
+func (g *Game) SetBlackRookHMoved(v bool) { g.blackRookHMoved = v }
+
 // ── Приватные проверки (шах, легальность, мат) ────────────
 
 func kingInCheck(game *Game, color Color) bool {

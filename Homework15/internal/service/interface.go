@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"mod.go/internal/model"
 	"mod.go/internal/repository/filestore"
 )
@@ -27,6 +29,7 @@ type Storage interface {
 	GetMoveByID(id int) (model.Move, bool)
 	UpdateMove(id int, newMove model.Move) error
 	DeleteMove(id int) error
+	MakeMove(ctx context.Context, gameID int, move *model.Move, game *model.Game) error
 }
 
 var _ Storage = (*filestore.Storage)(nil)

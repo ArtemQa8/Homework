@@ -5,9 +5,19 @@ coverage.out
 # Secrets
 .env
 
+# Local Editor Settings
+.vscode
+
 # Binaries
 *.exe
 *.test
 
+# Old Data (Backup)
+data_old
+
 # Notes
 NOTES.md
+
+# Local SQL playground
+playground.sql
+export_data/
